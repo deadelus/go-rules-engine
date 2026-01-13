@@ -4,19 +4,19 @@
 [![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/deadelus/go-rules-engine)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Un moteur de règles métier puissant et flexible pour Go, inspiré de [json-rules-engine](https://github.com/CacheControl/json-rules-engine). Évaluez des conditions complexes et déclenchez des événements basés sur des faits dynamiques.
+A powerful and flexible business rules engine for Go, inspired by [json-rules-engine](https://github.com/CacheControl/json-rules-engine). Evaluate complex conditions and trigger events based on dynamic facts.
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-- 🎯 **Règles définies en JSON ou en code** - Chargez vos règles depuis des fichiers JSON ou créez-les directement en Go
-- 🔄 **Conditions complexes** - Supportez les opérateurs `all` et `any` avec imbrication infinie
-- 📊 **Opérateurs riches** - `equal`, `not_equal`, `greater_than`, `less_than`, `in`, `not_in`, `contains`, `not_contains`
-- 🎪 **Système d'événements** - Callbacks personnalisés et handlers globaux pour réagir aux résultats
-- 💾 **Faits dynamiques** - Calculez des valeurs à la volée avec des callbacks
-- 🧮 **Support JSONPath** - Accédez à des données imbriquées avec `$.path.to.value`
-- ⚡ **Priorités de règles** - Contrôlez l'ordre d'évaluation avec des priorités
-- 🔒 **Thread-safe** - Protégé par des mutex pour un usage concurrent
-- ✅ **100% de couverture de tests** - Code robuste et testé en profondeur
+- 🎯 **JSON or Code-defined Rules** - Load rules from JSON files or create them directly in Go
+- 🔄 **Complex Conditions** - Support `all` and `any` operators with infinite nesting
+- 📊 **Rich Operators** - `equal`, `not_equal`, `greater_than`, `less_than`, `in`, `not_in`, `contains`, `not_contains`
+- 🎪 **Event System** - Custom callbacks and global handlers to react to results
+- 💾 **Dynamic Facts** - Compute values on-the-fly with callbacks
+- 🧮 **JSONPath Support** - Access nested data with `$.path.to.value`
+- ⚡ **Rule Priorities** - Control evaluation order with priorities
+- 🔒 **Thread-safe** - Protected by mutexes for concurrent usage
+- ✅ **100% Test Coverage** - Robust and thoroughly tested code
 
 ## 📦 Installation
 
@@ -24,9 +24,9 @@ Un moteur de règles métier puissant et flexible pour Go, inspiré de [json-rul
 go get github.com/deadelus/go-rules-engine
 ```
 
-## 🚀 Démarrage rapide
+## 🚀 Quick Start
 
-### Exemple basique
+### Basic Example
 
 ```go
 package main
@@ -37,10 +37,10 @@ import (
 )
 
 func main() {
-    // 1. Créer le moteur de règles
+    // 1. Create the rules engine
     engine := gorulesengine.NewEngine()
 
-    // 2. Définir une règle
+    // 2. Define a rule
     rule := &gorulesengine.Rule{
         Name:     "adult-user",
         Priority: 10,
@@ -58,35 +58,35 @@ func main() {
         Event: gorulesengine.Event{
             Type: "user-is-adult",
             Params: map[string]interface{}{
-                "message": "Utilisateur majeur détecté",
+                "message": "Adult user detected",
             },
         },
     }
 
-    // 3. Ajouter la règle au moteur
+    // 3. Add the rule to the engine
     engine.AddRule(rule)
 
-    // 4. Créer l'almanac avec des faits
+    // 4. Create the almanac with facts
     almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
     almanac.AddFact("age", 25)
 
-    // 5. Exécuter le moteur
+    // 5. Run the engine
     results, err := engine.Run(almanac)
     if err != nil {
         panic(err)
     }
 
-    // 6. Afficher les résultats
+    // 6. Display results
     for _, result := range results {
         if result.Result {
-            fmt.Printf("✅ Règle '%s' déclenchée!\n", result.Rule.Name)
+            fmt.Printf("✅ Rule '%s' triggered!\n", result.Rule.Name)
             fmt.Printf("   Event: %s\n", result.Event.Type)
         }
     }
 }
 ```
 
-### Charger des règles depuis JSON
+### Load Rules from JSON
 
 ```go
 package main
@@ -98,7 +98,7 @@ import (
 )
 
 func main() {
-    // JSON de la règle
+    // Rule JSON
     ruleJSON := `{
         "name": "premium-user",
         "priority": 10,
@@ -139,11 +139,11 @@ func main() {
     almanac.AddFact("revenue", 1500)
 
     results, _ := engine.Run(almanac)
-    fmt.Printf("Règles déclenchées: %d\n", len(results))
+    fmt.Printf("Rules triggered: %d\n", len(results))
 }
 ```
 
-### Charger des règles ET des facts depuis JSON
+### Load Rules AND Facts from JSON
 
 ```go
 package main
@@ -155,7 +155,7 @@ import (
 )
 
 func main() {
-    // JSON des règles
+    // Rules JSON
     rulesJSON := `[
         {
             "name": "high-value-order",
@@ -185,7 +185,7 @@ func main() {
         }
     ]`
 
-    // JSON des facts (données)
+    // Facts JSON (data)
     factsJSON := `{
         "user": {
             "id": 12345,
@@ -198,29 +198,29 @@ func main() {
         }
     }`
 
-    // Charger les règles
+    // Load rules
     var rules []*gorulesengine.Rule
     json.Unmarshal([]byte(rulesJSON), &rules)
 
-    // Charger les facts
+    // Load facts
     var factsData map[string]interface{}
     json.Unmarshal([]byte(factsJSON), &factsData)
 
-    // Créer l'engine et ajouter les règles
+    // Create engine and add rules
     engine := gorulesengine.NewEngine()
     for _, rule := range rules {
         engine.AddRule(rule)
     }
 
-    // Créer l'almanac et ajouter les facts
+    // Create almanac and add facts
     almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
     for key, value := range factsData {
         almanac.AddFact(gorulesengine.FactID(key), value)
     }
 
-    // Exécuter
+    // Execute
     results, _ := engine.Run(almanac)
-    fmt.Printf("Règles déclenchées: %d\n", len(results))
+    fmt.Printf("Rules triggered: %d\n", len(results))
 }
 ```
 
@@ -228,9 +228,9 @@ func main() {
 
 ### Architecture
 
-Le moteur de règles est composé de plusieurs composants clés :
+The rules engine is composed of several key components:
 
-#### 1. **Engine** - Le moteur principal
+#### 1. **Engine** - The main engine
 
 ```go
 engine := gorulesengine.NewEngine()
@@ -238,53 +238,56 @@ engine.AddRule(rule)
 results, err := engine.Run(almanac)
 ```
 
-**Méthodes :**
-- `AddRule(rule *Rule)` - Ajoute une règle au moteur
-- `Run(almanac *Almanac) ([]RuleResult, error)` - Exécute toutes les règles
-- `RegisterCallback(name string, callback Callback)` - Enregistre un callback nommé
-- `On(outcome string, handler EventHandler)` - Handler global pour success/failure
-- `OnEvent(eventType string, handler EventHandler)` - Handler spécifique à un type d'événement
+**Methods:**
+- `AddRule(rule *Rule)` - Add a rule to the engine
+- `AddFact(fact *Fact)` - Add a fact to the engine
+- `RegisterCallback(name string, callback Callback)` - Register a named callback
+- `OnSucess(handler EventHandler)` - Global handler for success
+- `OnFailure(handler EventHandler)` - Global handler for failure
+- `On(eventType string, handler EventHandler)` - Handler specific to an event type
+- `Run(almanac *Almanac) ([]RuleResult, error)` - Execute all rules
 
-#### 2. **Rule** - Une règle métier
+
+#### 2. **Rule** - A business rule
 
 ```go
 rule := &gorulesengine.Rule{
     Name:       "my-rule",
-    Priority:   10,          // Plus élevé = exécuté en premier
+    Priority:   10,          // Higher = executed first
     Conditions: conditionSet,
     Event:      event,
-    OnSuccess:  strPtr("mySuccessCallback"), // Optionnel
-    OnFailure:  strPtr("myFailureCallback"), // Optionnel
+    OnSuccess:  strPtr("mySuccessCallback"), // Optional
+    OnFailure:  strPtr("myFailureCallback"), // Optional
 }
 ```
 
-#### 3. **Condition** - Une condition à évaluer
+#### 3. **Condition** - A condition to evaluate
 
 ```go
 condition := &gorulesengine.Condition{
     Fact:     "age",
     Operator: "greater_than",
     Value:    18,
-    Path:     "$.user.age", // Optionnel: JSONPath pour données imbriquées
+    Path:     "$.user.age", // Optional: JSONPath for nested data
 }
 ```
 
-**Opérateurs disponibles :**
-- `equal` - Égalité
-- `not_equal` - Différent de
-- `greater_than` - Supérieur à
-- `greater_than_or_equal` - Supérieur ou égal à
-- `less_than` - Inférieur à
-- `less_than_or_equal` - Inférieur ou égal à
-- `in` - Dans la liste
-- `not_in` - Pas dans la liste
-- `contains` - Contient (pour strings et arrays)
-- `not_contains` - Ne contient pas
+**Available Operators:**
+- `equal` - Equality
+- `not_equal` - Not equal to
+- `greater_than` - Greater than
+- `greater_than_or_equal` - Greater than or equal to
+- `less_than` - Less than
+- `less_than_or_equal` - Less than or equal to
+- `in` - In the list
+- `not_in` - Not in the list
+- `contains` - Contains (for strings and arrays)
+- `not_contains` - Does not contain
 
-#### 4. **ConditionSet** - Groupement de conditions
+#### 4. **ConditionSet** - Condition grouping
 
 ```go
-// Toutes les conditions doivent être vraies (AND)
+// All conditions must be true (AND)
 conditionSet := gorulesengine.ConditionSet{
     All: []gorulesengine.ConditionNode{
         {Condition: &condition1},
@@ -292,7 +295,7 @@ conditionSet := gorulesengine.ConditionSet{
     },
 }
 
-// Au moins une condition doit être vraie (OR)
+// At least one condition must be true (OR)
 conditionSet := gorulesengine.ConditionSet{
     Any: []gorulesengine.ConditionNode{
         {Condition: &condition1},
@@ -300,7 +303,7 @@ conditionSet := gorulesengine.ConditionSet{
     },
 }
 
-// Imbrication (AND de OR)
+// Nesting (AND of OR)
 conditionSet := gorulesengine.ConditionSet{
     All: []gorulesengine.ConditionNode{
         {Condition: &condition1},
@@ -316,29 +319,29 @@ conditionSet := gorulesengine.ConditionSet{
 }
 ```
 
-#### 5. **Almanac** - Stockage des faits
+#### 5. **Almanac** - Facts storage
 
 ```go
 almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
 
-// Ajouter des faits simples
+// Add simple facts
 almanac.AddFact("age", 25)
 almanac.AddFact("country", "FR")
 
-// Ajouter des faits dynamiques
+// Add dynamic facts
 almanac.AddFact("temperature", gorulesengine.Fact{
     ID: "temperature",
     Calculate: func(params map[string]interface{}, almanac *gorulesengine.Almanac) (interface{}, error) {
-        // Logique de calcul personnalisée
+        // Custom calculation logic
         return fetchTemperature(), nil
     },
 })
 
-// Récupérer un fait
+// Retrieve a fact
 value, err := almanac.GetFactValue("age", nil)
 ```
 
-#### 6. **Event** - Événement déclenché
+#### 6. **Event** - Triggered event
 
 ```go
 event := gorulesengine.Event{
@@ -350,57 +353,57 @@ event := gorulesengine.Event{
 }
 ```
 
-### Système de callbacks et handlers
+### Callbacks and Handlers System
 
-#### Callbacks nommés (définis dans les règles JSON)
+#### Named Callbacks (defined in JSON rules)
 
 ```go
 engine := gorulesengine.NewEngine()
 
-// Enregistrer le callback
+// Register the callback
 engine.RegisterCallback("sendEmail", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
-    fmt.Printf("Envoi d'email pour: %s\n", event.Type)
+    fmt.Printf("Sending email for: %s\n", event.Type)
     return nil
 })
 
-// Dans la règle JSON
+// In the JSON rule
 rule := &gorulesengine.Rule{
     Name: "email-rule",
-    OnSuccess: strPtr("sendEmail"), // Référence au callback
+    OnSuccess: strPtr("sendEmail"), // Reference to callback
     // ...
 }
 ```
 
-#### Handlers globaux
+#### Global Handlers
 
 ```go
-// Handler pour toutes les règles réussies
+// Handler for all successful rules
 engine.On("success", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
-    fmt.Printf("✅ Règle réussie: %s\n", ruleResult.Rule.Name)
+    fmt.Printf("✅ Successful rule: %s\n", ruleResult.Rule.Name)
     return nil
 })
 
-// Handler pour toutes les règles échouées
+// Handler for all failed rules
 engine.On("failure", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
-    fmt.Printf("❌ Règle échouée: %s\n", ruleResult.Rule.Name)
+    fmt.Printf("❌ Failed rule: %s\n", ruleResult.Rule.Name)
     return nil
 })
 ```
 
-#### Handlers par type d'événement
+#### Event Type Handlers
 
 ```go
-// Handler spécifique pour un type d'événement
+// Specific handler for an event type
 engine.OnEvent("user-approved", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
     userId := event.Params["userId"]
-    fmt.Printf("Utilisateur %v approuvé!\n", userId)
+    fmt.Printf("User %v approved!\n", userId)
     return nil
 })
 ```
 
-### Support JSONPath
+### JSONPath Support
 
-Accédez à des données imbriquées dans vos faits :
+Access nested data in your facts:
 
 ```go
 almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
@@ -413,7 +416,7 @@ almanac.AddFact("user", map[string]interface{}{
     },
 })
 
-// Utilisez JSONPath dans les conditions
+// Use JSONPath in conditions
 condition := &gorulesengine.Condition{
     Fact:     "user",
     Path:     "$.profile.address.city",
@@ -422,9 +425,9 @@ condition := &gorulesengine.Condition{
 }
 ```
 
-### Gestion des erreurs
+### Error Handling
 
-Le moteur utilise un système d'erreurs typées pour une meilleure traçabilité :
+The engine uses a typed error system for better traceability:
 
 ```go
 results, err := engine.Run(almanac)
@@ -436,73 +439,73 @@ if err != nil {
 }
 ```
 
-**Types d'erreurs :**
-- `ErrEngine` - Erreur générale du moteur
-- `ErrAlmanac` - Erreur liée aux faits (almanac)
-- `ErrFact` - Erreur de calcul de fait
-- `ErrRule` - Erreur dans la définition de la règle
-- `ErrCondition` - Erreur d'évaluation de condition
-- `ErrOperator` - Opérateur invalide ou non trouvé
-- `ErrEvent` - Erreur liée aux événements
-- `ErrJSON` - Erreur de parsing JSON
+**Error Types:**
+- `ErrEngine` - General engine error
+- `ErrAlmanac` - Error related to facts (almanac)
+- `ErrFact` - Fact calculation error
+- `ErrRule` - Error in rule definition
+- `ErrCondition` - Condition evaluation error
+- `ErrOperator` - Invalid or not found operator
+- `ErrEvent` - Error related to events
+- `ErrJSON` - JSON parsing error
 
 ## 🧪 Tests
 
-Le projet dispose d'une couverture de tests de **100%** :
+The project has **100%** test coverage:
 
 ```bash
-# Exécuter tous les tests
+# Run all tests
 go test ./src -v
 
-# Avec couverture
+# With coverage
 go test ./src -coverprofile=coverage.out
 go tool cover -html=coverage.out
 
-# Voir le résumé
+# See summary
 go tool cover -func=coverage.out | tail -1
 # Output: total: (statements) 100.0%
 ```
 
-## 🔍 Qualité du code
+## 🔍 Code Quality
 
-Le code respecte toutes les conventions Go et passe les linters sans avertissement :
+The code follows all Go conventions and passes linters without warnings:
 
 ```bash
-# go vet (vérification statique)
+# go vet (static analysis)
 go vet ./src/...
 
-# golint (style Go)
+# golint (Go style)
 golint ./src/...
 
-# Format du code
+# Code formatting
 go fmt ./src/...
 ```
 
-**Standards respectés:**
-- ✅ Conventions de nommage Go (CamelCase, pas de ALL_CAPS)
-- ✅ Documentation GoDoc complète sur toutes les exports
-- ✅ Gestion d'erreurs appropriée
-- ✅ Code thread-safe avec mutexes
-- ✅ Tests exhaustifs avec 100% de couverture
+**Standards Enforced:**
+- ✅ Go naming conventions (CamelCase, no ALL_CAPS)
+- ✅ Complete GoDoc documentation on all exports
+- ✅ Appropriate error handling
+- ✅ Thread-safe code with mutexes
+- ✅ Comprehensive tests with 100% coverage
 
 ## 🗺️ Roadmap
 
-### ✅ Phases complétées
+### ✅ Completed Phases
 
-- [x] Phase 1: Structures de base (Condition, Rule, Fact)
-- [x] Phase 2: Almanac et gestion des faits
-- [x] Phase 3: Opérateurs (equal, greater_than, less_than, etc.)
-- [x] Phase 4: Évaluation des conditions (all/any, imbrication)
-- [x] Phase 5: Engine avec système d'événements
-- [x] Phase 6: Support JSON et désérialisation
-- [x] Phase 7: Features avancées (callbacks, handlers, JSONPath)
-- [x] Tests complets avec 100% de couverture
+- [x] Phase 1: Basic structures (Condition, Rule, Fact)
+- [x] Phase 2: Almanac and facts management
+- [x] Phase 3: Operators (equal, greater_than, less_than, etc.)
+- [x] Phase 4: Condition evaluation (all/any, nesting)
+- [x] Phase 5: Engine with event system
+- [x] Phase 6: JSON support and deserialization
+- [x] Phase 7: Advanced features (callbacks, handlers, JSONPath)
+- [x] Complete tests with 100% coverage
 
-### 🚧 Phases à venir
+### 🚧 Upcoming Phases
 
-#### Phase 8: API ergonomique et builders
+#### Phase 8: Ergonomic API and builders
 
-**Builders fluent pour créer des règles**
+**Fluent builders for creating rules**
 ```go
 rule := NewRuleBuilder().
     WithName("adult-user").
@@ -512,7 +515,7 @@ rule := NewRuleBuilder().
     Build()
 ```
 
-**Helpers de conditions**
+**Condition helpers**
 ```go
 condition := All(
     GreaterThan("age", 18),
@@ -524,66 +527,66 @@ condition := All(
 )
 ```
 
-#### Phase 9: Documentation et exemples
+#### Phase 9: Documentation and examples
 
-- [x] Documentation GoDoc complète
-- [x] Exemples dans `examples/`
-  - [x] `examples/full-demo.go` - Démonstration complète de toutes les fonctionnalités
-  - [x] `examples/basic/` - Cas simple
-  - [x] `examples/json/` - Chargement JSON
-  - [x] `examples/advanced/` - Features avancées
-  - [x] `examples/custom-operator/` - Opérateurs personnalisés
+- [x] Complete GoDoc documentation
+- [x] Examples in `examples/`
+  - [x] `examples/full-demo.go` - Complete demonstration of all features
+  - [x] `examples/basic/` - Simple case
+  - [x] `examples/json/` - JSON loading
+  - [x] `examples/advanced/` - Advanced features
+  - [x] `examples/custom-operator/` - Custom operators
 
-#### Phase 10: Nouveaux opérateurs
+#### Phase 10: New operators
 
-- [ ] `regex` - Vérifier si la valeur correspond à une expression régulière
+- [ ] `regex` - Check if value matches a regular expression
 
-#### Phase 11: Performance et optimisation
+#### Phase 11: Performance and optimization
 
-- [ ] Benchmarks complets
-- [ ] Cache des résultats de conditions
-- [ ] Évaluation parallèle des règles indépendantes
-- [ ] Profilage mémoire et CPU
+- [ ] Complete benchmarks
+- [ ] Condition results caching
+- [ ] Parallel evaluation of independent rules
+- [ ] Memory and CPU profiling
 
-#### Phase 12: Features avancées
+#### Phase 12: Advanced features
 
-- [ ] Tri des fact par `priority`
-- [ ] Support de règles async
-- [ ] Persistance des résultats
-- [ ] Métriques et monitoring
-- [ ] Hot-reload des règles
-- [ ] API REST optionnelle
+- [ ] Sort facts by `priority`
+- [ ] Async rules support
+- [ ] Results persistence
+- [ ] Metrics and monitoring
+- [ ] Hot-reload of rules
+- [ ] Optional REST API
 
-## 🤝 Contribution
+## 🤝 Contributing
 
-Les contributions sont les bienvenues ! Pour contribuer :
+Contributions are welcome! To contribute:
 
-1. Forkez le projet
-2. Créez une branche (`git checkout -b feature/amazing-feature`)
-3. Committez vos changements (`git commit -m 'Add amazing feature'`)
-4. Pushez vers la branche (`git push origin feature/amazing-feature`)
-5. Ouvrez une Pull Request
+1. Fork the project
+2. Create a branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-**Guidelines :**
-- Écrivez des tests pour toutes les nouvelles fonctionnalités
-- Maintenez la couverture à 100%
-- Suivez les conventions Go (gofmt, golint)
-- Documentez vos fonctions publiques
+**Guidelines:**
+- Write tests for all new features
+- Maintain 100% coverage
+- Follow Go conventions (gofmt, golint)
+- Document your public functions
 
 ## 📄 License
 
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
 
 **Copyright (c) 2026 Geoffrey Trambolho (@deadelus)**
 
-## 🙏 Remerciements
+## 🙏 Acknowledgments
 
-Inspiré par [json-rules-engine](https://github.com/CacheControl/json-rules-engine) de CacheControl.
+Inspired by [json-rules-engine](https://github.com/CacheControl/json-rules-engine) by CacheControl.
 
 ## 📞 Contact
 
-Créé par [@deadelus](https://github.com/deadelus)
+Created by [@deadelus](https://github.com/deadelus)
 
 ---
 
-⭐ N'oubliez pas de donner une étoile si ce projet vous aide !
+⭐ Don't forget to star if this project helps you!

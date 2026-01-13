@@ -1,85 +1,85 @@
 # Examples - Go Rules Engine
 
-Ce dossier contient des exemples d'utilisation du moteur de règles Go.
+This folder contains usage examples of the Go rules engine.
 
-## 📚 Exemples disponibles
+## 📚 Available Examples
 
 ### 1. basic/main.go
-**Exemple basique** - Vérification d'âge simple avec une seule règle.
+**Basic Example** - Simple age verification with a single rule.
 
 ```bash
 go run examples/basic/main.go
 ```
 
-Démontre :
-- ✅ Création d'un engine
-- ✅ Règle simple avec condition
-- ✅ Opérateur `greater_than`
-- ✅ Tests avec différentes valeurs
+Demonstrates:
+- ✅ Engine creation
+- ✅ Simple rule with condition
+- ✅ `greater_than` operator
+- ✅ Tests with different values
 
 ### 2. json/main.go
-**Chargement JSON** - Charge des règles et facts depuis JSON.
+**JSON Loading** - Load rules and facts from JSON.
 
 ```bash
 go run examples/json/main.go
 ```
 
-Démontre :
-- ✅ Unmarshal de règles JSON
-- ✅ Unmarshal de facts JSON
-- ✅ Ajout de règles à l'engine
-- ✅ Ajout de facts à l'almanac
-- ✅ Règles VIP et régulières
+Demonstrates:
+- ✅ Unmarshaling JSON rules
+- ✅ Unmarshaling JSON facts
+- ✅ Adding rules to engine
+- ✅ Adding facts to almanac
+- ✅ VIP and regular rules
 
 ### 3. custom-operator/main.go
-**Opérateurs personnalisés** - Création d'opérateurs custom.
+**Custom Operators** - Creating custom operators.
 
 ```bash
 go run examples/custom-operator/main.go
 ```
 
-Démontre :
-- ✅ Interface `Operator`
-- ✅ Implémentation de `CustomOperator`
-- ✅ Opérateurs `starts_with`, `ends_with`, `between`
-- ✅ `RegisterOperator` pour enregistrer les opérateurs
+Demonstrates:
+- ✅ `Operator` interface
+- ✅ `CustomOperator` implementation
+- ✅ `starts_with`, `ends_with`, `between` operators
+- ✅ `RegisterOperator` to register operators
 
 ### 4. advanced/main.go
-**Fonctionnalités avancées** - Callbacks, handlers et dynamic facts.
+**Advanced Features** - Callbacks, handlers and dynamic facts.
 
 ```bash
 go run examples/advanced/main.go
 ```
 
-Démontre :
-- ✅ Callbacks nommés avec `RegisterCallback`
-- ✅ Handler global `OnSuccess`
-- ✅ Handler spécifique par type d'événement `On()`
-- ✅ Dynamic facts (calcul de remise)
-- ✅ Multiple handlers simultanés
+Demonstrates:
+- ✅ Named callbacks with `RegisterCallback`
+- ✅ Global handler `OnSuccess`
+- ✅ Specific handler per event type `On()`
+- ✅ Dynamic facts (discount calculation)
+- ✅ Multiple simultaneous handlers
 
 ### 5. full-demo.go
-**Démonstration complète** - Toutes les fonctionnalités en un seul exemple.
+**Complete Demonstration** - All features in a single example.
 
 ```bash
 go run examples/full-demo.go
 ```
 
-Démontre :
-- ✅ Règles simples et complexes
-- ✅ Conditions imbriquées (all/any)
-- ✅ Callbacks et handlers
-- ✅ Chargement JSON
+Demonstrates:
+- ✅ Simple and complex rules
+- ✅ Nested conditions (all/any)
+- ✅ Callbacks and handlers
+- ✅ JSON loading
 - ✅ Dynamic facts
 - ✅ JSONPath
-- ✅ Historique des événements
+- ✅ Event history
 
-## 🚀 Exécution
+## 🚀 Execution
 
-Depuis la racine du projet :
+From the project root:
 
 ```bash
-# Exemple basique
+# Basic example
 go run examples/basic/main.go
 
 # JSON
@@ -95,25 +95,25 @@ go run examples/advanced/main.go
 go run examples/full-demo.go
 ```
 
-## 📖 Documentation complète
+## 📖 Complete Documentation
 
-Voir le [README principal](../README.md) pour la documentation complète de l'API.
+See the [main README](../README.md) for complete API documentation.
 
 ## 💡 Quick Start
 
-Pour créer votre propre application :
+To create your own application:
 
-1. **Import** :
+1. **Import**:
    ```go
    import gorulesengine "github.com/deadelus/go-rules-engine/src"
    ```
 
-2. **Engine** :
+2. **Engine**:
    ```go
    engine := gorulesengine.NewEngine()
    ```
 
-3. **Règle** :
+3. **Rule**:
    ```go
    rule := &gorulesengine.Rule{
        Name:     "my-rule",
@@ -136,13 +136,13 @@ Pour créer votre propre application :
    engine.AddRule(rule)
    ```
 
-4. **Almanac** :
+4. **Almanac**:
    ```go
    almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
    almanac.AddFact("age", 25)
    ```
 
-5. **Run** :
+5. **Run**:
    ```go
    results, err := engine.Run(almanac)
    if err != nil {
@@ -156,21 +156,21 @@ Pour créer votre propre application :
    }
    ```
 
-## 📝 Structure des exemples
+## 📝 Example Structure
 
 ```
 examples/
-├── README.md           # Ce fichier
-├── full-demo.go        # Démo complète
-├── basic/              # Exemple basique
+├── README.md           # This file
+├── full-demo.go        # Complete demo
+├── basic/              # Basic example
 │   └── main.go
-├── json/               # Chargement JSON
+├── json/               # JSON loading
 │   └── main.go
-├── custom-operator/    # Opérateurs custom
+├── custom-operator/    # Custom operators
 │   └── main.go
-└── advanced/           # Features avancées
+└── advanced/           # Advanced features
     └── main.go
 ```
 
-Consultez chaque exemple pour des cas d'usage spécifiques!
+Check each example for specific use cases!
 
