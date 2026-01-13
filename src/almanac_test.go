@@ -655,3 +655,254 @@ func TestGetFactValue_NilValueWithPath(t *testing.T) {
 		t.Errorf("Expected nil, got %v", val)
 	}
 }
+
+func TestTraversePath_ComplexMapWithValidPath(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	// Structure profondément imbriquée
+	userData := map[string]interface{}{
+		"user": map[string]interface{}{
+			"profile": map[string]interface{}{
+				"address": map[string]interface{}{
+					"city":    "Paris",
+					"country": "France",
+				},
+			},
+		},
+	}
+
+	err := almanac.AddFact("user_data", userData)
+	if err != nil {
+		t.Fatalf("Unexpected error adding fact: %v", err)
+	}
+
+	// Tester TraversePath via GetFactValue avec un path JSONPath valide
+	val, err := almanac.GetFactValue("user_data", nil, "$.user.profile.address.city")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if val != "Paris" {
+		t.Errorf("Expected 'Paris', got %v", val)
+	}
+}
+
+func TestTraversePath_SliceAccess(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	// Structure avec slice
+	data := map[string]interface{}{
+		"users": []interface{}{
+			map[string]interface{}{"name": "Alice", "age": 30},
+			map[string]interface{}{"name": "Bob", "age": 25},
+		},
+	}
+
+	err := almanac.AddFact("users_list", data)
+	if err != nil {
+		t.Fatalf("Unexpected error adding fact: %v", err)
+	}
+
+	// Accéder au premier élément du slice
+	val, err := almanac.GetFactValue("users_list", nil, "$.users[0].name")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if val != "Alice" {
+		t.Errorf("Expected 'Alice', got %v", val)
+	}
+}
+
+func TestTraversePath_InvalidPath_ReturnsAlmanacError(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	// Structure simple
+	data := map[string]interface{}{
+		"user": map[string]interface{}{
+			"name": "Alice",
+		},
+	}
+
+	err := almanac.AddFact("user_info", data)
+	if err != nil {
+		t.Fatalf("Unexpected error adding fact: %v", err)
+	}
+
+	// Essayer un path qui n'existe pas
+	_, err = almanac.GetFactValue("user_info", nil, "$.user.nonexistent.field")
+	if err == nil {
+		t.Fatal("Expected AlmanacError, got nil")
+	}
+
+	// Vérifier que c'est bien une AlmanacError
+	almanacErr, ok := err.(*gorulesengine.AlmanacError)
+	if !ok {
+		t.Fatalf("Expected *AlmanacError, got %T", err)
+	}
+
+	// Vérifier le payload contient factID et path
+	expectedPayload := "factID=user_info, path=$.user.nonexistent.field"
+	if almanacErr.Payload != expectedPayload {
+		t.Errorf("Expected payload '%s', got '%s'", expectedPayload, almanacErr.Payload)
+	}
+
+	// Vérifier que le message d'erreur contient les informations pertinentes
+	errMsg := almanacErr.Error()
+	if errMsg == "" {
+		t.Error("Expected non-empty error message")
+	}
+}
+
+func TestTraversePath_EmptyPath_ReturnsFullValue(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	data := map[string]interface{}{
+		"user": map[string]interface{}{
+			"name": "Alice",
+			"age":  30,
+		},
+	}
+
+	err := almanac.AddFact("full_data", data)
+	if err != nil {
+		t.Fatalf("Unexpected error adding fact: %v", err)
+	}
+
+	// Path vide devrait retourner la valeur complète
+	val, err := almanac.GetFactValue("full_data", nil, "")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Vérifier que c'est la structure complète
+	resultMap, ok := val.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map[string]interface{}, got %T", val)
+	}
+
+	userMap, ok := resultMap["user"].(map[string]interface{})
+	if !ok {
+		t.Fatal("Expected user to be a map")
+	}
+
+	if userMap["name"] != "Alice" {
+		t.Errorf("Expected name 'Alice', got %v", userMap["name"])
+	}
+}
+
+func TestTraversePath_StructValue(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	// JSONPath nécessite map[string]interface{} pour naviguer
+	// Convertir struct en map pour compatibilité
+	user := map[string]interface{}{
+		"Name": "Alice",
+		"Address": map[string]interface{}{
+			"City":    "Lyon",
+			"Country": "France",
+		},
+	}
+
+	err := almanac.AddFact("struct_user", user)
+	if err != nil {
+		t.Fatalf("Unexpected error adding fact: %v", err)
+	}
+
+	// JSONPath peut naviguer dans les maps imbriquées
+	val, err := almanac.GetFactValue("struct_user", nil, "$.Address.City")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if val != "Lyon" {
+		t.Errorf("Expected 'Lyon', got %v", val)
+	}
+}
+
+func TestTraversePath_WithDynamicFact(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	// Fait dynamique qui retourne une structure complexe
+	dynamicFunc := func() interface{} {
+		return map[string]interface{}{
+			"config": map[string]interface{}{
+				"timeout": 30,
+				"retry":   3,
+			},
+		}
+	}
+
+	err := almanac.AddFact("dynamic_config", dynamicFunc, gorulesengine.WithoutCache())
+	if err != nil {
+		t.Fatalf("Unexpected error adding fact: %v", err)
+	}
+
+	// Appliquer un path sur le résultat du fait dynamique
+	val, err := almanac.GetFactValue("dynamic_config", nil, "$.config.timeout")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// JSONPath peut retourner int ou float64 pour les nombres
+	switch timeout := val.(type) {
+	case int:
+		if timeout != 30 {
+			t.Errorf("Expected timeout 30, got %d", timeout)
+		}
+	case float64:
+		if timeout != 30 {
+			t.Errorf("Expected timeout 30, got %f", timeout)
+		}
+	default:
+		t.Errorf("Expected int or float64, got %T", val)
+	}
+}
+
+func TestTraversePath_Wildcard(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	// Structure avec plusieurs utilisateurs
+	data := map[string]interface{}{
+		"users": []interface{}{
+			map[string]interface{}{"name": "Alice", "role": "admin"},
+			map[string]interface{}{"name": "Bob", "role": "user"},
+			map[string]interface{}{"name": "Charlie", "role": "user"},
+		},
+	}
+
+	err := almanac.AddFact("all_users", data)
+	if err != nil {
+		t.Fatalf("Unexpected error adding fact: %v", err)
+	}
+
+	// Utiliser wildcard pour obtenir tous les noms
+	val, err := almanac.GetFactValue("all_users", nil, "$.users[*].name")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// JSONPath retourne un slice avec tous les noms
+	names, ok := val.([]interface{})
+	if !ok {
+		t.Fatalf("Expected []interface{}, got %T", val)
+	}
+
+	if len(names) != 3 {
+		t.Errorf("Expected 3 names, got %d", len(names))
+	}
+
+	// Vérifier que les noms sont présents
+	expectedNames := map[string]bool{"Alice": false, "Bob": false, "Charlie": false}
+	for _, name := range names {
+		if n, ok := name.(string); ok {
+			expectedNames[n] = true
+		}
+	}
+
+	for name, found := range expectedNames {
+		if !found {
+			t.Errorf("Expected to find name '%s'", name)
+		}
+	}
+}

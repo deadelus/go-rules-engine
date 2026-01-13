@@ -135,19 +135,12 @@ func (a *Almanac) GetFactValue(factID FactID, params map[string]interface{}, pat
 	}
 
 	// Apply path resolution if path is provided
-	if path != "" {
-		// Check if value is a complex type (map, slice, struct) that supports path resolution
-		valType := reflect.TypeOf(val)
-		if valType != nil {
-			kind := valType.Kind()
-			// Only apply path resolver to complex types
-			if kind == reflect.Map || kind == reflect.Slice || kind == reflect.Struct || kind == reflect.Ptr {
-				return a.pathResolver(val, path)
-			}
+	val, err := a.TraversePath(val, path)
+	if err != nil {
+		return nil, &AlmanacError{
+			Payload: fmt.Sprintf("factID=%s, path=%s", factID, path),
+			Err:     fmt.Errorf("failed to resolve path '%s' for fact '%s': %v", path, factID, err),
 		}
-		// For primitive types (string, int, bool, etc.), path resolution doesn't make sense
-		// Return the value as-is
-		return val, nil
 	}
 
 	return val, nil
@@ -165,6 +158,26 @@ func (a *Almanac) GetFactValueFromCache(factID FactID) (interface{}, bool) {
 	cachedVal, cached := a.factResultsCache[cacheKey]
 
 	return cachedVal, cached
+}
+
+// traversePath is a helper to traverse nested structures based on a path
+func (a *Almanac) TraversePath(data interface{}, path string) (interface{}, error) {
+	var val = data
+	// Apply path resolution if path is provided
+	if path != "" {
+		// Check if value is a complex type (map, slice, struct) that supports path resolution
+		valType := reflect.TypeOf(data)
+		if valType != nil {
+			kind := valType.Kind()
+			// Only apply path resolver to complex types
+			if kind == reflect.Map || kind == reflect.Slice || kind == reflect.Struct || kind == reflect.Ptr {
+				return a.pathResolver(data, path)
+			}
+		}
+	}
+	// For primitive types (string, int, bool, etc.), path resolution doesn't make sense
+	// Return the value as-is
+	return val, nil
 }
 
 // GetOptions returns the almanac options
