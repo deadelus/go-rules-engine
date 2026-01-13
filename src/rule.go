@@ -1,5 +1,6 @@
 package gorulesengine
 
+// Rule represents a rule with conditions and an associated event
 type Rule struct {
 	Name       string       `json:"name,omitempty"`
 	Priority   int          `json:"priority,omitempty"`
@@ -9,7 +10,9 @@ type Rule struct {
 	OnFailure  *string      `json:"on_failure,omitempty"`
 }
 
-type Event struct {
-	Type   string                 `json:"type"`
-	Params map[string]interface{} `json:"params,omitempty"`
+// RuleResult represents the result of evaluating a rule
+type RuleResult struct {
+	Event  Event
+	Rule   *Rule
+	Result bool // true si la règle a matché
 }

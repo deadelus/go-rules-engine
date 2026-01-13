@@ -63,6 +63,9 @@ func evaluateConditionNode(node *ConditionNode, almanac *Almanac) (bool, error) 
 
 // Evaluate evaluates the condition against the almanac
 func (c *Condition) Evaluate(almanac *Almanac) (bool, error) {
+	// Here params can be passed to the fact calculation
+	// Usefull only for dynamic facts
+	// For static facts, params are ignored
 	factValue, err := almanac.GetFactValue(c.Fact, c.Params, c.Path)
 	if err != nil {
 		return false, &ConditionError{

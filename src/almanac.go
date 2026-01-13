@@ -13,15 +13,14 @@ const ALMANAC_OPTION_KEY_ALLOW_UNDEFINED_FACTS = "allowUndefinedFacts"
 type Almanac struct {
 	factMap          map[FactID]*Fact
 	factResultsCache map[string]interface{}
-	events           *EventResults
-	pathResolver     PathResolver
-	options          map[string]interface{}
-	mutex            sync.RWMutex
-}
-
-type EventResults struct {
-	success []interface{}
-	fail    []interface{}
+	events           struct {
+		success []Event
+		failure []Event
+	}
+	ruleResults  []RuleResult
+	pathResolver PathResolver
+	options      map[string]interface{}
+	mutex        sync.RWMutex
 }
 
 type AlmanacOption func(*Almanac)
@@ -49,9 +48,13 @@ func NewAlmanac(facts []*Fact, opts ...AlmanacOption) *Almanac {
 	a := &Almanac{
 		factMap:          make(map[FactID]*Fact),
 		factResultsCache: make(map[string]interface{}),
-		events:           &EventResults{},
-		pathResolver:     DefaultPathResolver,
-		options:          make(map[string]interface{}),
+		events: struct {
+			success []Event
+			failure []Event
+		}{},
+		ruleResults:  []RuleResult{},
+		pathResolver: DefaultPathResolver,
+		options:      make(map[string]interface{}),
 	}
 
 	AllowUndefinedFacts()(a)
@@ -188,4 +191,50 @@ func (a *Almanac) GetOptions() map[string]interface{} {
 // GetFacts returns the almanac's fact map
 func (a *Almanac) GetFacts() map[FactID]*Fact {
 	return a.factMap
+}
+
+// AddEvent adds an event to the almanac under success or failure
+func (a *Almanac) AddEvent(event Event, outcome string) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	switch outcome {
+	case "success":
+		a.events.success = append(a.events.success, event)
+	case "failure":
+		a.events.failure = append(a.events.failure, event)
+	default:
+		// Invalid outcome, ignore
+	}
+}
+
+// GetEvents retrieves events from the almanac based on outcome
+func (a *Almanac) GetEvents(outcome string) []Event {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+
+	switch outcome {
+	case "success":
+		return a.events.success
+	case "failure":
+		return a.events.failure
+	default:
+		return append(a.events.success, a.events.failure...)
+	}
+}
+
+// AddResult adds a rule result to the almanac
+func (a *Almanac) AddResult(result RuleResult) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	a.ruleResults = append(a.ruleResults, result)
+}
+
+// GetResults returns all rule results from the almanac
+func (a *Almanac) GetResults() []RuleResult {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+
+	return a.ruleResults
 }
