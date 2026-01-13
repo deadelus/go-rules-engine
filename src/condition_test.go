@@ -256,7 +256,7 @@ func TestCondition_Evaluate_FactValueError(t *testing.T) {
 	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
 
 	// Ne pas ajouter le fait, forcer allowUndefinedFacts à false
-	almanac.GetOptions()[gorulesengine.ALMANAC_OPTION_KEY_ALLOW_UNDEFINED_FACTS] = false
+	almanac.GetOptions()[gorulesengine.AlmanacOptionKeyAllowUndefinedFacts] = false
 
 	// Créer une condition avec un fait inexistant
 	condition := &gorulesengine.Condition{

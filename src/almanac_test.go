@@ -64,7 +64,7 @@ func TestNewAlmanac(t *testing.T) {
 	}
 
 	expectedOpts := almanac.GetOptions()
-	if allowUndefined, ok := expectedOpts[gorulesengine.ALMANAC_OPTION_KEY_ALLOW_UNDEFINED_FACTS]; !ok || allowUndefined != true {
+	if allowUndefined, ok := expectedOpts[gorulesengine.AlmanacOptionKeyAllowUndefinedFacts]; !ok || allowUndefined != true {
 		t.Fatalf("Expected allowUndefinedFacts to be true, got %v", allowUndefined)
 	}
 
@@ -148,7 +148,7 @@ func TestGetFactValue_UndefinedFactNotAllowed(t *testing.T) {
 	// Créer une option personnalisée pour désactiver allowUndefinedFacts
 	disallowUndefinedFacts := func(a *gorulesengine.Almanac) {
 		opts := a.GetOptions()
-		opts[gorulesengine.ALMANAC_OPTION_KEY_ALLOW_UNDEFINED_FACTS] = false
+		opts[gorulesengine.AlmanacOptionKeyAllowUndefinedFacts] = false
 	}
 
 	// Créer un almanac avec allowUndefinedFacts désactivé
@@ -904,5 +904,161 @@ func TestTraversePath_Wildcard(t *testing.T) {
 		if !found {
 			t.Errorf("Expected to find name '%s'", name)
 		}
+	}
+}
+func TestAddEvent_Success(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	event := gorulesengine.Event{
+		Type: "test-event",
+		Params: map[string]interface{}{
+			"key": "value",
+		},
+	}
+
+	almanac.AddEvent(event, "success")
+
+	events := almanac.GetEvents("success")
+	if len(events) != 1 {
+		t.Errorf("Expected 1 success event, got %d", len(events))
+	}
+
+	if events[0].Type != "test-event" {
+		t.Errorf("Expected event type 'test-event', got '%s'", events[0].Type)
+	}
+}
+
+func TestAddEvent_Failure(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	event := gorulesengine.Event{
+		Type: "failure-event",
+		Params: map[string]interface{}{
+			"error": "something went wrong",
+		},
+	}
+
+	almanac.AddEvent(event, "failure")
+
+	events := almanac.GetEvents("failure")
+	if len(events) != 1 {
+		t.Errorf("Expected 1 failure event, got %d", len(events))
+	}
+
+	if events[0].Type != "failure-event" {
+		t.Errorf("Expected event type 'failure-event', got '%s'", events[0].Type)
+	}
+}
+
+func TestAddEvent_InvalidOutcome(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	event := gorulesengine.Event{
+		Type: "invalid-event",
+	}
+
+	// Test with invalid outcome - should be ignored
+	almanac.AddEvent(event, "invalid")
+
+	// Verify no events were added
+	successEvents := almanac.GetEvents("success")
+	failureEvents := almanac.GetEvents("failure")
+
+	if len(successEvents) != 0 {
+		t.Errorf("Expected 0 success events, got %d", len(successEvents))
+	}
+
+	if len(failureEvents) != 0 {
+		t.Errorf("Expected 0 failure events, got %d", len(failureEvents))
+	}
+}
+
+func TestGetEvents_All(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	successEvent := gorulesengine.Event{Type: "success-event"}
+	failureEvent := gorulesengine.Event{Type: "failure-event"}
+
+	almanac.AddEvent(successEvent, "success")
+	almanac.AddEvent(failureEvent, "failure")
+
+	// Get all events (default case)
+	allEvents := almanac.GetEvents("")
+
+	if len(allEvents) != 2 {
+		t.Errorf("Expected 2 total events, got %d", len(allEvents))
+	}
+
+	// Verify both events are present
+	foundSuccess := false
+	foundFailure := false
+
+	for _, event := range allEvents {
+		if event.Type == "success-event" {
+			foundSuccess = true
+		}
+		if event.Type == "failure-event" {
+			foundFailure = true
+		}
+	}
+
+	if !foundSuccess {
+		t.Error("Expected to find success event in all events")
+	}
+
+	if !foundFailure {
+		t.Error("Expected to find failure event in all events")
+	}
+}
+
+func TestGetEvents_InvalidOutcome(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	successEvent := gorulesengine.Event{Type: "success-event"}
+	failureEvent := gorulesengine.Event{Type: "failure-event"}
+
+	almanac.AddEvent(successEvent, "success")
+	almanac.AddEvent(failureEvent, "failure")
+
+	// Get events with invalid outcome (should return all)
+	allEvents := almanac.GetEvents("invalid-outcome")
+
+	if len(allEvents) != 2 {
+		t.Errorf("Expected 2 total events when using invalid outcome, got %d", len(allEvents))
+	}
+}
+
+func TestAddResult(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	rule := &gorulesengine.Rule{
+		Name:     "test-rule",
+		Priority: 10,
+	}
+
+	result := gorulesengine.RuleResult{
+		Event:  gorulesengine.Event{Type: "test"},
+		Rule:   rule,
+		Result: true,
+	}
+
+	almanac.AddResult(result)
+
+	results := almanac.GetResults()
+	if len(results) != 1 {
+		t.Errorf("Expected 1 result, got %d", len(results))
+	}
+
+	if results[0].Rule.Name != "test-rule" {
+		t.Errorf("Expected rule name 'test-rule', got '%s'", results[0].Rule.Name)
+	}
+}
+
+func TestGetResults_Empty(t *testing.T) {
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+
+	results := almanac.GetResults()
+	if len(results) != 0 {
+		t.Errorf("Expected 0 results, got %d", len(results))
 	}
 }

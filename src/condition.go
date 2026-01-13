@@ -5,25 +5,50 @@ import (
 	"fmt"
 )
 
+// Condition represents a single condition that compares a fact value against an expected value using an operator.
+// Conditions can optionally use JSONPath to access nested values within facts.
+//
+// Example:
+//
+//	condition := &gorulesengine.Condition{
+//	    Fact:     "age",
+//	    Operator: "greater_than",
+//	    Value:    18,
+//	}
 type Condition struct {
-	Fact     FactID                 `json:"fact"`
-	Operator OperatorType           `json:"operator"`
-	Value    interface{}            `json:"value"`
-	Path     string                 `json:"path,omitempty"`
-	Params   map[string]interface{} `json:"params,omitempty"`
+	Fact     FactID                 `json:"fact"`             // The fact identifier to evaluate
+	Operator OperatorType           `json:"operator"`         // The comparison operator to use
+	Value    interface{}            `json:"value"`            // The expected value to compare against
+	Path     string                 `json:"path,omitempty"`   // Optional JSONPath to access nested fact values
+	Params   map[string]interface{} `json:"params,omitempty"` // Optional parameters for dynamic facts
 }
 
+// ConditionSet represents a group of conditions combined with logical operators (all/any/none).
+// ConditionSets can be nested to create complex boolean logic.
+//
+// Example:
+//
+//	conditionSet := gorulesengine.ConditionSet{
+//	    All: []gorulesengine.ConditionNode{
+//	        {Condition: &condition1},
+//	        {Condition: &condition2},
+//	    },
+//	}
 type ConditionSet struct {
-	All  []ConditionNode `json:"all,omitempty"`
-	Any  []ConditionNode `json:"any,omitempty"`
-	None []ConditionNode `json:"none,omitempty"`
+	All  []ConditionNode `json:"all,omitempty"`  // All conditions must be true (AND)
+	Any  []ConditionNode `json:"any,omitempty"`  // At least one condition must be true (OR)
+	None []ConditionNode `json:"none,omitempty"` // No conditions must be true (NOT)
 }
 
+// ConditionNode represents either a single Condition or a nested ConditionSet.
+// This allows for recursive nesting of conditions to build complex boolean expressions.
 type ConditionNode struct {
-	Condition *Condition
-	SubSet    *ConditionSet
+	Condition *Condition    // A single condition to evaluate
+	SubSet    *ConditionSet // A nested set of conditions
 }
 
+// UnmarshalJSON implements custom JSON unmarshaling for ConditionNode.
+// It attempts to unmarshal either a Condition or a ConditionSet from the JSON data.
 func (n *ConditionNode) UnmarshalJSON(data []byte) error {
 	var cond Condition
 	err1 := json.Unmarshal(data, &cond)

@@ -2,23 +2,34 @@ package gorulesengine
 
 import "fmt"
 
+// ErrorType identifies the category of error that occurred.
 type ErrorType string
 
 const (
-	ErrAlmanac   ErrorType = "ALMANAC_ERROR"
-	ErrFact      ErrorType = "FACT_ERROR"
-	ErrRule      ErrorType = "RULE_ERROR"
+	// ErrEngine indicates a general engine execution error.
+	ErrEngine ErrorType = "ENGINE_ERROR"
+	// ErrAlmanac indicates an error related to the almanac or fact management.
+	ErrAlmanac ErrorType = "ALMANAC_ERROR"
+	// ErrFact indicates an error computing or accessing a fact value.
+	ErrFact ErrorType = "FACT_ERROR"
+	// ErrRule indicates an error in rule definition or structure.
+	ErrRule ErrorType = "RULE_ERROR"
+	// ErrCondition indicates an error evaluating a condition.
 	ErrCondition ErrorType = "CONDITION_ERROR"
-	ErrOperator  ErrorType = "OPERATOR_ERROR"
-	ErrEvent     ErrorType = "EVENT_ERROR"
-	ErrJSON      ErrorType = "JSON_ERROR"
+	// ErrOperator indicates an error with an operator (not found, invalid, etc.).
+	ErrOperator ErrorType = "OPERATOR_ERROR"
+	// ErrEvent indicates an error related to event handling.
+	ErrEvent ErrorType = "EVENT_ERROR"
+	// ErrJSON indicates an error parsing or unmarshaling JSON.
+	ErrJSON ErrorType = "JSON_ERROR"
 )
 
-// RuleEngineError is the base error type for the rule engine
+// RuleEngineError is the base error type for all errors in the rule engine.
+// It categorizes errors by type and optionally wraps underlying errors.
 type RuleEngineError struct {
-	Type ErrorType
-	Msg  string
-	Err  error // wrapped error (optional)
+	Type ErrorType // The category of error
+	Msg  string    // Human-readable error message
+	Err  error     // Wrapped underlying error (optional)
 }
 
 // Error implements the error interface
@@ -34,34 +45,36 @@ func (e *RuleEngineError) Unwrap() error {
 	return e.Err
 }
 
+// AlmanacError represents an error that occurred while accessing or managing facts in the almanac.
 type AlmanacError struct {
-	Payload string
-	Err     error
+	Payload string // Context about what was being accessed
+	Err     error  // Underlying error
 }
 
+// FactError represents an error that occurred while computing or accessing a fact value.
 type FactError struct {
-	Fact Fact
-	Err  error
+	Fact Fact  // The fact that caused the error
+	Err  error // Underlying error
 }
 
-// OperatorError represents an error related to a specific operator
+// OperatorError represents an error related to a specific operator evaluation.
 type OperatorError struct {
-	Operator     OperatorType
-	Value        interface{}
-	CompareValue interface{}
-	Err          error
+	Operator     OperatorType // The operator that failed
+	Value        interface{}  // The fact value being compared
+	CompareValue interface{}  // The expected value
+	Err          error        // Underlying error
 }
 
-// RuleError represents an error related to a specific rule
+// RuleError represents an error related to a specific rule evaluation or definition.
 type RuleError struct {
-	Rule Rule
-	Err  error
+	Rule Rule  // The rule that caused the error
+	Err  error // Underlying error
 }
 
-// ConditionError represents an error related to a specific condition
+// ConditionError represents an error that occurred while evaluating a condition.
 type ConditionError struct {
-	Condition Condition
-	Err       error
+	Condition Condition // The condition that failed
+	Err       error     // Underlying error
 }
 
 // Error methods to convert to RuleEngineError

@@ -8,8 +8,12 @@ import (
 	"github.com/oliveagle/jsonpath"
 )
 
-const ALMANAC_OPTION_KEY_ALLOW_UNDEFINED_FACTS = "allowUndefinedFacts"
+// AlmanacOptionKeyAllowUndefinedFacts is the option key for allowing undefined facts.
+const AlmanacOptionKeyAllowUndefinedFacts = "allowUndefinedFacts"
 
+// Almanac stores facts and their computed values during rule evaluation.
+// It maintains a cache for fact values, tracks events, and manages rule results.
+// Almanac is thread-safe for concurrent access.
 type Almanac struct {
 	factMap          map[FactID]*Fact
 	factResultsCache map[string]interface{}
@@ -23,12 +27,14 @@ type Almanac struct {
 	mutex        sync.RWMutex
 }
 
+// AlmanacOption defines a functional option for configuring an Almanac.
 type AlmanacOption func(*Almanac)
 
-// PathResolver is the equivalent of the JavaScript pathResolver
+// PathResolver resolves nested values within facts using a path expression (e.g., JSONPath).
 type PathResolver func(value interface{}, path string) (interface{}, error)
 
-// DefaultPathResolver uses JSONPath
+// DefaultPathResolver implements JSONPath resolution for accessing nested fact values.
+// Example: "$.user.profile.age" accesses deeply nested data.
 func DefaultPathResolver(value interface{}, path string) (interface{}, error) {
 	if path == "" {
 		return value, nil
@@ -36,14 +42,22 @@ func DefaultPathResolver(value interface{}, path string) (interface{}, error) {
 	return jsonpath.JsonPathLookup(value, path)
 }
 
-// AllowUndefinedFacts configures the almanac to allow undefined facts
+// AllowUndefinedFacts configures the almanac to return nil instead of errors for undefined facts.
+// This is useful when you want to gracefully handle missing data.
 func AllowUndefinedFacts() AlmanacOption {
 	return func(a *Almanac) {
-		a.options[ALMANAC_OPTION_KEY_ALLOW_UNDEFINED_FACTS] = true
+		a.options[AlmanacOptionKeyAllowUndefinedFacts] = true
 	}
 }
 
-// NewAlmanac creates a new almanac with provided facts and options
+// NewAlmanac creates a new Almanac instance with the provided facts and options.
+// The almanac is initialized with default settings including undefined fact handling.
+//
+// Example:
+//
+//	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+//	almanac.AddFact("age", 25)
+//	almanac.AddFact("country", "FR")
 func NewAlmanac(facts []*Fact, opts ...AlmanacOption) *Almanac {
 	a := &Almanac{
 		factMap:          make(map[FactID]*Fact),
@@ -70,7 +84,19 @@ func NewAlmanac(facts []*Fact, opts ...AlmanacOption) *Almanac {
 	return a
 }
 
-// AddFact convert payload to a Fact and adds it to the almanac
+// AddFact adds a fact to the almanac.
+// The valueOrMethod can be either a static value or a function for dynamic facts.
+// Optional FactOptions can be provided to configure caching and priority.
+//
+// Example:
+//
+//	// Static fact
+//	almanac.AddFact("age", 25)
+//
+//	// Dynamic fact
+//	almanac.AddFact("temperature", func(params map[string]interface{}) interface{} {
+//	    return fetchTemperature()
+//	})
 func (a *Almanac) AddFact(id FactID, valueOrMethod interface{}, opts ...FactOption) error {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
@@ -79,7 +105,7 @@ func (a *Almanac) AddFact(id FactID, valueOrMethod interface{}, opts ...FactOpti
 	a.factMap[id] = fact
 
 	// Pre-cache the static fact value if caching is enabled
-	if cacheEnabled, ok := fact.options[FACT_OPTION_KEY_CACHE].(bool); ok && cacheEnabled {
+	if cacheEnabled, ok := fact.options[FactOptionKeyCache].(bool); ok && cacheEnabled {
 		if !fact.IsDynamic() {
 			cacheKey, _ := fact.GetCacheKey()
 			a.factResultsCache[cacheKey] = fact.ValueOrMethod()
@@ -89,7 +115,17 @@ func (a *Almanac) AddFact(id FactID, valueOrMethod interface{}, opts ...FactOpti
 	return nil
 }
 
-// GetFactValue retrieves a fact value with optional path extraction
+// GetFactValue retrieves the value of a fact by its ID.
+// For dynamic facts, params can be passed to the computation function.
+// The path parameter allows accessing nested values using JSONPath.
+//
+// Example:
+//
+//	// Simple fact access
+//	age, _ := almanac.GetFactValue("age", nil, "")
+//
+//	// Nested access with JSONPath
+//	city, _ := almanac.GetFactValue("user", nil, "$.address.city")
 func (a *Almanac) GetFactValue(factID FactID, params map[string]interface{}, path string) (interface{}, error) {
 	var fact *Fact
 	var exists bool
@@ -104,7 +140,7 @@ func (a *Almanac) GetFactValue(factID FactID, params map[string]interface{}, pat
 	// Fact not found
 	if !exists {
 		// Check if undefined facts are allowed
-		if allowUndefined, ok := a.options[ALMANAC_OPTION_KEY_ALLOW_UNDEFINED_FACTS].(bool); ok && allowUndefined {
+		if allowUndefined, ok := a.options[AlmanacOptionKeyAllowUndefinedFacts].(bool); ok && allowUndefined {
 			return nil, nil
 		}
 		return nil, &AlmanacError{
@@ -114,7 +150,7 @@ func (a *Almanac) GetFactValue(factID FactID, params map[string]interface{}, pat
 	}
 
 	// Check cache first
-	if val, _ := fact.GetOption(FACT_OPTION_KEY_CACHE); val == true {
+	if val, _ := fact.GetOption(FactOptionKeyCache); val == true {
 		cachedVal, cached = a.GetFactValueFromCache(factID)
 	}
 
@@ -128,7 +164,7 @@ func (a *Almanac) GetFactValue(factID FactID, params map[string]interface{}, pat
 		val = fact.Calculate(params)
 
 		// Cache the result if caching is enabled
-		if cacheEnabled, ok := fact.options[FACT_OPTION_KEY_CACHE].(bool); ok && cacheEnabled {
+		if cacheEnabled, ok := fact.options[FactOptionKeyCache].(bool); ok && cacheEnabled {
 			// Generate cache key for storing the result
 			key, _ := fact.GetCacheKey()
 			a.mutex.Lock()
@@ -163,7 +199,8 @@ func (a *Almanac) GetFactValueFromCache(factID FactID) (interface{}, bool) {
 	return cachedVal, cached
 }
 
-// traversePath is a helper to traverse nested structures based on a path
+// TraversePath is a helper to traverse nested structures based on a path expression.
+// It uses the configured PathResolver to access nested values within complex data structures.
 func (a *Almanac) TraversePath(data interface{}, path string) (interface{}, error) {
 	var val = data
 	// Apply path resolution if path is provided

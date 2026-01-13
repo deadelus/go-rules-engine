@@ -6,16 +6,33 @@ import (
 	"reflect"
 )
 
-const DYNAMIC_FACT = "__dynamic_fact__"
+// DynamicFact identifies a fact that computes its value dynamically using a function.
+const DynamicFact = "__dynamic_fact__"
 
-const CONSTANT_FACT = "__constant_fact__"
+// ConstantFact identifies a fact with a static, pre-defined value.
+const ConstantFact = "__constant_fact__"
 
-const FACT_OPTION_KEY_CACHE = "cache"
+// FactOptionKeyCache is the key for the caching option in fact options.
+const FactOptionKeyCache = "cache"
 
-const FACT_OPTION_KEY_PRIORITY = "priority"
+// FactOptionKeyPriority is the key for the priority option in fact options.
+const FactOptionKeyPriority = "priority"
 
+// FactID is a unique identifier for a fact.
 type FactID string
 
+// Fact represents a piece of data (fact) that can be used in rule conditions.
+// Facts can be static values or dynamic functions that compute values on demand.
+//
+// Example:
+//
+//	// Static fact
+//	fact := gorulesengine.NewFact("age", 25)
+//
+//	// Dynamic fact
+//	fact := gorulesengine.NewFact("temperature", func(params map[string]interface{}) interface{} {
+//	    return fetchTemperatureFromAPI()
+//	})
 type Fact struct {
 	id            FactID
 	valueOrMethod interface{}
@@ -23,31 +40,52 @@ type Fact struct {
 	options       map[string]interface{}
 }
 
-// FactOption defines a functional option for the fact
+// FactOption defines a functional option for configuring facts.
 type FactOption func(*Fact)
 
-// WithCache enables caching for the fact
+// WithCache enables caching for dynamic facts.
+// When enabled, the fact's value will be computed once and reused.
 func WithCache() FactOption {
 	return func(f *Fact) {
-		f.options[FACT_OPTION_KEY_CACHE] = true
+		f.options[FactOptionKeyCache] = true
 	}
 }
 
-// WithoutCache disables caching for the fact
+// WithoutCache disables caching for facts.
+// When disabled, dynamic facts will be re-evaluated on each access.
 func WithoutCache() FactOption {
 	return func(f *Fact) {
-		f.options[FACT_OPTION_KEY_CACHE] = false
+		f.options[FactOptionKeyCache] = false
 	}
 }
 
-// WithPriority sets the priority of the fact
+// WithPriority sets the evaluation priority of the fact.
+// Higher priority facts may be evaluated before lower priority facts.
 func WithPriority(priority int) FactOption {
 	return func(f *Fact) {
-		f.options[FACT_OPTION_KEY_PRIORITY] = priority
+		f.options[FactOptionKeyPriority] = priority
 	}
 }
 
-// NewFact creates a new fact with functional options
+// NewFact creates a new fact with the given ID and value or computation function.
+// If valueOrMethod is a function, the fact is dynamic and will compute its value on demand.
+// Otherwise, the fact is static with a constant value.
+//
+// Options can be provided to customize caching and priority behavior.
+//
+// Example:
+//
+//	// Static fact
+//	fact := gorulesengine.NewFact("age", 25)
+//
+//	// Dynamic fact with custom options
+//	fact := gorulesengine.NewFact("temperature",
+//	    func(params map[string]interface{}) interface{} {
+//	        return fetchTemperature()
+//	    },
+//	    gorulesengine.WithCache(),
+//	    gorulesengine.WithPriority(10),
+//	)
 func NewFact(id FactID, valueOrMethod interface{}, opts ...FactOption) *Fact {
 	fact := Fact{
 		id:            id,
@@ -56,16 +94,16 @@ func NewFact(id FactID, valueOrMethod interface{}, opts ...FactOption) *Fact {
 		factType: func() string {
 			// Use reflect to detect any function type
 			if reflect.TypeOf(valueOrMethod).Kind() == reflect.Func {
-				return DYNAMIC_FACT
+				return DynamicFact
 			}
-			return CONSTANT_FACT
+			return ConstantFact
 		}(),
 	}
 
 	// Default priority is 0
 	WithPriority(0)(&fact)
 
-	if fact.factType == DYNAMIC_FACT {
+	if fact.factType == DynamicFact {
 		WithCache()(&fact)
 	}
 
@@ -77,27 +115,27 @@ func NewFact(id FactID, valueOrMethod interface{}, opts ...FactOption) *Fact {
 	return &fact
 }
 
-// ID returns the fact identifier
+// ID returns the unique identifier of the fact.
 func (f *Fact) ID() FactID {
 	return f.id
 }
 
-// ValueOrMethod returns the fact value or method
+// ValueOrMethod returns the fact's value (for static facts) or computation function (for dynamic facts).
 func (f *Fact) ValueOrMethod() interface{} {
 	return f.valueOrMethod
 }
 
-// FactType returns the fact type
+// FactType returns the type of the fact: DYNAMIC_FACT or CONSTANT_FACT.
 func (f *Fact) FactType() string {
 	return f.factType
 }
 
-// IsDynamic returns true if the fact is dynamic
+// IsDynamic returns true if the fact computes its value dynamically using a function.
 func (f *Fact) IsDynamic() bool {
-	return f.factType == DYNAMIC_FACT
+	return f.factType == DynamicFact
 }
 
-// GetOption returns an option in an immutable way
+// GetOption returns the value of a specific option and whether it exists.
 func (f *Fact) GetOption(key string) (interface{}, bool) {
 	val, exists := f.options[key]
 	return val, exists
@@ -111,7 +149,7 @@ func (f *Fact) HasOption(key string) bool {
 
 // GetCacheKey generates a unique cache key for the fact if it's cached
 func (f *Fact) GetCacheKey() (string, error) {
-	if f.options[FACT_OPTION_KEY_CACHE] == true {
+	if f.options[FactOptionKeyCache] == true {
 		// Use the fact ID as cache key for both static and dynamic facts
 		// This simplifies the caching mechanism
 		return f.hashFromID()

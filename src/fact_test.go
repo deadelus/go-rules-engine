@@ -9,13 +9,13 @@ import (
 func TestFact_FactType(t *testing.T) {
 	// Test static fact
 	staticFact := gorulesengine.NewFact("static", "value")
-	if staticFact.FactType() != gorulesengine.CONSTANT_FACT {
+	if staticFact.FactType() != gorulesengine.ConstantFact {
 		t.Errorf("Expected CONSTANT_FACT, got %s", staticFact.FactType())
 	}
 
 	// Test dynamic fact
 	dynamicFact := gorulesengine.NewFact("dynamic", func() int { return 42 })
-	if dynamicFact.FactType() != gorulesengine.DYNAMIC_FACT {
+	if dynamicFact.FactType() != gorulesengine.DynamicFact {
 		t.Errorf("Expected DYNAMIC_FACT, got %s", dynamicFact.FactType())
 	}
 }
@@ -24,11 +24,11 @@ func TestFact_HasOption(t *testing.T) {
 	fact := gorulesengine.NewFact("test", "value", gorulesengine.WithCache(), gorulesengine.WithPriority(5))
 
 	// Test existing option
-	if !fact.HasOption(gorulesengine.FACT_OPTION_KEY_CACHE) {
+	if !fact.HasOption(gorulesengine.FactOptionKeyCache) {
 		t.Error("Expected cache option to exist")
 	}
 
-	if !fact.HasOption(gorulesengine.FACT_OPTION_KEY_PRIORITY) {
+	if !fact.HasOption(gorulesengine.FactOptionKeyPriority) {
 		t.Error("Expected priority option to exist")
 	}
 

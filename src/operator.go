@@ -6,19 +6,41 @@ import (
 	"strings"
 )
 
+// Operator defines the interface for all comparison operators.
+// Custom operators can be registered by implementing this interface.
 type Operator interface {
+	// Evaluate compares a fact value against a condition value and returns true if the comparison succeeds.
 	Evaluate(factValue interface{}, compareValue interface{}) (bool, error)
 }
 
+// EqualOperator checks if two values are equal.
 type EqualOperator struct{}
+
+// NotEqualOperator checks if two values are not equal.
 type NotEqualOperator struct{}
+
+// LessThanOperator checks if factValue < compareValue.
 type LessThanOperator struct{}
+
+// LessThanInclusiveOperator checks if factValue <= compareValue.
 type LessThanInclusiveOperator struct{}
+
+// GreaterThanOperator checks if factValue > compareValue.
 type GreaterThanOperator struct{}
+
+// GreaterThanInclusiveOperator checks if factValue >= compareValue.
 type GreaterThanInclusiveOperator struct{}
+
+// InOperator checks if factValue is contained in compareValue (array).
 type InOperator struct{}
+
+// NotInOperator checks if factValue is not contained in compareValue (array).
 type NotInOperator struct{}
+
+// ContainsOperator checks if factValue contains compareValue (for strings and arrays).
 type ContainsOperator struct{}
+
+// NotContainsOperator checks if factValue does not contain compareValue.
 type NotContainsOperator struct{}
 
 var operatorRegistry map[OperatorType]Operator
@@ -38,6 +60,8 @@ func init() {
 	}
 }
 
+// GetOperator retrieves an operator from the registry by its type.
+// Returns an error if the operator is not registered.
 func GetOperator(opType OperatorType) (Operator, error) {
 	op, exists := operatorRegistry[opType]
 	if !exists {
@@ -49,6 +73,21 @@ func GetOperator(opType OperatorType) (Operator, error) {
 	return op, nil
 }
 
+// RegisterOperator registers a custom operator in the global operator registry.
+// This allows you to extend the engine with custom comparison logic.
+//
+// Example:
+//
+//	type StartsWithOperator struct{}
+//	func (o *StartsWithOperator) Evaluate(factValue, compareValue interface{}) (bool, error) {
+//	    str, ok1 := factValue.(string)
+//	    prefix, ok2 := compareValue.(string)
+//	    if !ok1 || !ok2 {
+//	        return false, fmt.Errorf("both values must be strings")
+//	    }
+//	    return strings.HasPrefix(str, prefix), nil
+//	}
+//	gorulesengine.RegisterOperator("starts_with", &StartsWithOperator{})
 func RegisterOperator(opType OperatorType, operator Operator) {
 	operatorRegistry[opType] = operator
 }
@@ -86,6 +125,8 @@ func toFloat64(value interface{}) (float64, bool) {
 	}
 }
 
+// Evaluate checks if two values are equal using deep equality comparison.
+// Returns false if the values have different types or if either value is nil.
 func (o *EqualOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	if factValue == nil || compareValue == nil {
 		return false, &OperatorError{
@@ -103,6 +144,8 @@ func (o *EqualOperator) Evaluate(factValue interface{}, compareValue interface{}
 	return reflect.DeepEqual(factValue, compareValue), nil
 }
 
+// Evaluate checks if two values are not equal.
+// Returns the inverse of the EqualOperator result.
 func (o *NotEqualOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	equal, err := (&EqualOperator{}).Evaluate(factValue, compareValue)
 	if err != nil {
@@ -116,6 +159,8 @@ func (o *NotEqualOperator) Evaluate(factValue interface{}, compareValue interfac
 	return !equal, nil
 }
 
+// Evaluate checks if factValue is less than compareValue.
+// Both values must be numeric types.
 func (o *LessThanOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	fv, ok1 := toFloat64(factValue)
 	cv, ok2 := toFloat64(compareValue)
@@ -130,6 +175,8 @@ func (o *LessThanOperator) Evaluate(factValue interface{}, compareValue interfac
 	return fv < cv, nil
 }
 
+// Evaluate checks if factValue is less than or equal to compareValue.
+// Both values must be numeric types.
 func (o *LessThanInclusiveOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	fv, ok1 := toFloat64(factValue)
 	cv, ok2 := toFloat64(compareValue)
@@ -144,6 +191,8 @@ func (o *LessThanInclusiveOperator) Evaluate(factValue interface{}, compareValue
 	return fv <= cv, nil
 }
 
+// Evaluate checks if factValue is greater than compareValue.
+// Both values must be numeric types.
 func (o *GreaterThanOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	fv, ok1 := toFloat64(factValue)
 	cv, ok2 := toFloat64(compareValue)
@@ -158,6 +207,8 @@ func (o *GreaterThanOperator) Evaluate(factValue interface{}, compareValue inter
 	return fv > cv, nil
 }
 
+// Evaluate checks if factValue is greater than or equal to compareValue.
+// Both values must be numeric types.
 func (o *GreaterThanInclusiveOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	fv, ok1 := toFloat64(factValue)
 	cv, ok2 := toFloat64(compareValue)
@@ -172,6 +223,8 @@ func (o *GreaterThanInclusiveOperator) Evaluate(factValue interface{}, compareVa
 	return fv >= cv, nil
 }
 
+// Evaluate checks if factValue is contained in the compareValue array.
+// compareValue must be a slice or array.
 func (o *InOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	// Use reflection to handle any slice type
 	rv := reflect.ValueOf(compareValue)
@@ -201,6 +254,8 @@ func (o *InOperator) Evaluate(factValue interface{}, compareValue interface{}) (
 	return false, nil
 }
 
+// Evaluate checks if factValue is not contained in the compareValue array.
+// Returns the inverse of the InOperator result.
 func (o *NotInOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	in, err := (&InOperator{}).Evaluate(factValue, compareValue)
 	if err != nil {
@@ -214,6 +269,8 @@ func (o *NotInOperator) Evaluate(factValue interface{}, compareValue interface{}
 	return !in, nil
 }
 
+// Evaluate checks if factValue contains compareValue.
+// For strings, checks substring containment. For arrays/slices, checks element presence.
 func (o *ContainsOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	// Use reflection to handle any slice or string type
 	rv := reflect.ValueOf(factValue)
@@ -258,6 +315,8 @@ func (o *ContainsOperator) Evaluate(factValue interface{}, compareValue interfac
 	}
 }
 
+// Evaluate checks if factValue does not contain compareValue.
+// Returns the inverse of the ContainsOperator result.
 func (o *NotContainsOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	contains, err := (&ContainsOperator{}).Evaluate(factValue, compareValue)
 	if err != nil {
