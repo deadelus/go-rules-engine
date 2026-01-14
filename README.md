@@ -10,7 +10,7 @@ A powerful and flexible business rules engine for Go, inspired by [json-rules-en
 
 - 🎯 **JSON or Code-defined Rules** - Load rules from JSON files or create them directly in Go
 - 🔄 **Complex Conditions** - Support `all` and `any` operators with infinite nesting
-- 📊 **Rich Operators** - `equal`, `not_equal`, `greater_than`, `less_than`, `in`, `not_in`, `contains`, `not_contains`
+- 📊 **Rich Operators** - 11 built-in operators including `equal`, `greater_than`, `contains`, `regex` and more
 - 🎪 **Event System** - Custom callbacks and global handlers to react to results
 - 💾 **Dynamic Facts** - Compute values on-the-fly with callbacks
 - 🧮 **JSONPath Support** - Access nested data with `$.path.to.value`
@@ -348,6 +348,7 @@ condition := &gorulesengine.Condition{
 - `not_in` - Not in the list
 - `contains` - Contains (for strings and arrays)
 - `not_contains` - Does not contain
+- `regex` - Matches a regular expression pattern (string values only)
 
 #### 4. **ConditionSet** - Condition grouping
 
@@ -490,6 +491,40 @@ condition := &gorulesengine.Condition{
 }
 ```
 
+### Regex Pattern Matching
+
+Use the `regex` operator to match string values against regular expression patterns:
+
+```go
+engine := gorulesengine.NewEngine()
+
+// Rule to validate email format
+emailRule := &gorulesengine.Rule{
+    Name:     "validate-email",
+    Priority: 10,
+    Conditions: gorulesengine.ConditionSet{
+        All: []gorulesengine.ConditionNode{
+            {
+                Condition: &gorulesengine.Condition{
+                    Fact:     "email",
+                    Operator: "regex",
+                    Value:    "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+                },
+            },
+        },
+    },
+    Event: gorulesengine.Event{Type: "valid-email"},
+}
+
+engine.AddRule(emailRule)
+
+almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+almanac.AddFact("email", "user@example.com")
+
+results, _ := engine.Run(almanac)
+// Will match if email is valid
+```
+
 ### Error Handling
 
 The engine uses a typed error system for better traceability:
@@ -565,11 +600,12 @@ go fmt ./src/...
 - [x] Phase 6: JSON support and deserialization
 - [x] Phase 7: Advanced features (callbacks, handlers, JSONPath)
 - [x] Phase 8: Configurable priority sorting (ASC/DESC/disabled)
+- [x] Phase 9: Regex operator for pattern matching
 - [x] Complete tests with 100% coverage
 
 ### 🚧 Upcoming Phases
 
-#### Phase 9: Ergonomic API and builders
+#### Phase 10: Ergonomic API and builders
 
 **Fluent builders for creating rules**
 ```go
@@ -593,7 +629,7 @@ condition := All(
 )
 ```
 
-#### Phase 10: Documentation and examples
+#### Phase 11: Documentation and examples
 
 - [x] Complete GoDoc documentation
 - [x] Examples in `examples/`
@@ -602,10 +638,6 @@ condition := All(
   - [x] `examples/json/` - JSON loading
   - [x] `examples/advanced/` - Advanced features
   - [x] `examples/custom-operator/` - Custom operators
-
-#### Phase 11: New operators
-
-- [ ] `regex` - Check if value matches a regular expression
 
 #### Phase 12: Performance and optimization
 
@@ -616,7 +648,7 @@ condition := All(
 
 #### Phase 13: Advanced features
 
-- [ ] Sort facts by `priority`
+- [x] Sort facts by `priority`
 - [ ] Async rules support
 - [ ] Results persistence
 - [ ] Metrics and monitoring
