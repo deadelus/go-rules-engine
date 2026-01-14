@@ -110,7 +110,7 @@ func main() {
 	}
 
 	// Exécuter
-	fmt.Println("\n🚀 Exécution du moteur...\n")
+	fmt.Println("\n🚀 Exécution du moteur...")
 	results, err := engine.Run(almanac)
 	if err != nil {
 		fmt.Printf("❌ Erreur: %v\n", err)

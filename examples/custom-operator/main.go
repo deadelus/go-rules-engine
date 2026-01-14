@@ -12,6 +12,7 @@ type CustomOperator struct {
 	evaluate func(interface{}, interface{}) (bool, error)
 }
 
+// Evaluate implémente la méthode Evaluate de l'interface Operator
 func (c *CustomOperator) Evaluate(factValue interface{}, conditionValue interface{}) (bool, error) {
 	return c.evaluate(factValue, conditionValue)
 }

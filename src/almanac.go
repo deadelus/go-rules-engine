@@ -11,6 +11,15 @@ import (
 // AlmanacOptionKeyAllowUndefinedFacts is the option key for allowing undefined facts.
 const AlmanacOptionKeyAllowUndefinedFacts = "allowUndefinedFacts"
 
+// EventOutcome represents an event outcome triggered by a rule.
+type EventOutcome string
+
+// EventOutcomeSuccess represents a successful event outcome.
+const EventOutcomeSuccess EventOutcome = "success"
+
+// EventOutcomeFailure represents a failed event outcome.
+const EventOutcomeFailure EventOutcome = "failure"
+
 // Almanac stores facts and their computed values during rule evaluation.
 // It maintains a cache for fact values, tracks events, and manages rule results.
 // Almanac is thread-safe for concurrent access.
@@ -230,34 +239,44 @@ func (a *Almanac) GetFacts() map[FactID]*Fact {
 	return a.factMap
 }
 
-// AddEvent adds an event to the almanac under success or failure
-func (a *Almanac) AddEvent(event Event, outcome string) {
+// AddFailureEvent adds a failure event to the almanac
+func (a *Almanac) AddFailureEvent(event Event) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
-	switch outcome {
-	case "success":
-		a.events.success = append(a.events.success, event)
-	case "failure":
-		a.events.failure = append(a.events.failure, event)
-	default:
-		// Invalid outcome, ignore
-	}
+	a.events.failure = append(a.events.failure, event)
+}
+
+// AddSuccessEvent adds a success event to the almanac
+func (a *Almanac) AddSuccessEvent(event Event) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	a.events.success = append(a.events.success, event)
 }
 
 // GetEvents retrieves events from the almanac based on outcome
-func (a *Almanac) GetEvents(outcome string) []Event {
+func (a *Almanac) GetEvents() []Event {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 
-	switch outcome {
-	case "success":
-		return a.events.success
-	case "failure":
-		return a.events.failure
-	default:
-		return append(a.events.success, a.events.failure...)
-	}
+	return append(a.events.success, a.events.failure...)
+}
+
+// GetSuccessEvents retrieves all success events from the almanac
+func (a *Almanac) GetSuccessEvents() []Event {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+
+	return a.events.success
+}
+
+// GetFailureEvents retrieves all failure events from the almanac
+func (a *Almanac) GetFailureEvents() []Event {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+
+	return a.events.failure
 }
 
 // AddResult adds a rule result to the almanac

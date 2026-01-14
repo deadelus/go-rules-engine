@@ -281,9 +281,19 @@ func main() {
 
 ### Architecture
 
-The rules engine is composed of several key components:
+For a complete visual architecture, see the [detailed architecture documentation](ARCHITECTURE.md) with Mermaid diagrams.
+
+#### System Overview
+
+![System Overview](diagrams/overview.png)
+
+The rules engine is composed of several key components working together:
+
+![Execution Flow](diagrams/sequence.png)
 
 #### 1. **Engine** - The main engine
+
+![Engine Options](diagrams/engine-options.png)
 
 ```go
 // Default engine (with descending priority sorting)
@@ -327,6 +337,8 @@ rule := &gorulesengine.Rule{
 ```
 
 #### 3. **Condition** - A condition to evaluate
+
+![Operators](diagrams/operator.png)
 
 ```go
 condition := &gorulesengine.Condition{
@@ -387,6 +399,8 @@ conditionSet := gorulesengine.ConditionSet{
 
 #### 5. **Almanac** - Facts storage
 
+![Facts System](diagrams/fact.png)
+
 ```go
 almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
 
@@ -420,6 +434,10 @@ event := gorulesengine.Event{
 ```
 
 ### Callbacks and Handlers System
+
+![Event System](diagrams/event-system.png)
+
+The engine provides three levels of event handlers:
 
 #### Named Callbacks (defined in JSON rules)
 
@@ -601,54 +619,20 @@ go fmt ./src/...
 - [x] Phase 7: Advanced features (callbacks, handlers, JSONPath)
 - [x] Phase 8: Configurable priority sorting (ASC/DESC/disabled)
 - [x] Phase 9: Regex operator for pattern matching
+- [x] Phase 10: Ergonomic API and builders
 - [x] Complete tests with 100% coverage
 
 ### 🚧 Upcoming Phases
 
-#### Phase 10: Ergonomic API and builders
-
-**Fluent builders for creating rules**
-```go
-rule := NewRuleBuilder().
-    WithName("adult-user").
-    WithPriority(10).
-    WithCondition(Equal("age", 18)).
-    WithEvent("user-is-adult", nil).
-    Build()
-```
-
-**Condition helpers**
-```go
-condition := All(
-    GreaterThan("age", 18),
-    Equal("country", "FR"),
-    Any(
-        Equal("status", "premium"),
-        Equal("status", "vip"),
-    ),
-)
-```
-
-#### Phase 11: Documentation and examples
-
-- [x] Complete GoDoc documentation
-- [x] Examples in `examples/`
-  - [x] `examples/full-demo.go` - Complete demonstration of all features
-  - [x] `examples/basic/` - Simple case
-  - [x] `examples/json/` - JSON loading
-  - [x] `examples/advanced/` - Advanced features
-  - [x] `examples/custom-operator/` - Custom operators
-
-#### Phase 12: Performance and optimization
+#### Phase 11: Performance and optimization
 
 - [ ] Complete benchmarks
 - [ ] Condition results caching
 - [ ] Parallel evaluation of independent rules
 - [ ] Memory and CPU profiling
 
-#### Phase 13: Advanced features
+#### Phase 12: Advanced features
 
-- [x] Sort facts by `priority`
 - [ ] Async rules support
 - [ ] Results persistence
 - [ ] Metrics and monitoring

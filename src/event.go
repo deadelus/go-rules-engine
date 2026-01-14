@@ -1,12 +1,5 @@
 package gorulesengine
 
-const (
-	// EventSuccess represents a success event type for rules that matched.
-	EventSuccess = "success"
-	// EventFailure represents a failure event type for rules that did not match.
-	EventFailure = "failure"
-)
-
 // Event represents an event triggered by a rule when its conditions are met.
 // Events can carry additional parameters in the Params map.
 type Event struct {

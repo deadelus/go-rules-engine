@@ -463,7 +463,7 @@ func TestEngine_AlmanacEventStorage(t *testing.T) {
 	}
 
 	// Vérifier que l'événement a été stocké
-	successEvents := almanac.GetEvents("success")
+	successEvents := almanac.GetSuccessEvents()
 	if len(successEvents) != 1 {
 		t.Errorf("Expected 1 success event, got %d", len(successEvents))
 	}
@@ -591,7 +591,7 @@ func TestEngine_OnFailureCallback(t *testing.T) {
 	}
 
 	// Vérifier que l'événement est dans la liste failure
-	failureEvents := almanac.GetEvents("failure")
+	failureEvents := almanac.GetFailureEvents()
 	if len(failureEvents) != 1 {
 		t.Errorf("Expected 1 failure event, got %d", len(failureEvents))
 	}

@@ -3,6 +3,7 @@ package gorulesengine
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -43,20 +44,24 @@ type ContainsOperator struct{}
 // NotContainsOperator checks if factValue does not contain compareValue.
 type NotContainsOperator struct{}
 
+// RegexOperator checks if factValue matches the regex pattern in compareValue.
+type RegexOperator struct{}
+
 var operatorRegistry map[OperatorType]Operator
 
 func init() {
 	operatorRegistry = map[OperatorType]Operator{
-		Equal:                &EqualOperator{},
-		NotEqual:             &NotEqualOperator{},
-		LessThan:             &LessThanOperator{},
-		LessThanInclusive:    &LessThanInclusiveOperator{},
-		GreaterThan:          &GreaterThanOperator{},
-		GreaterThanInclusive: &GreaterThanInclusiveOperator{},
-		In:                   &InOperator{},
-		NotIn:                &NotInOperator{},
-		Contains:             &ContainsOperator{},
-		NotContains:          &NotContainsOperator{},
+		OperatorEqual:                &EqualOperator{},
+		OperatorNotEqual:             &NotEqualOperator{},
+		OperatorLessThan:             &LessThanOperator{},
+		OperatorLessThanInclusive:    &LessThanInclusiveOperator{},
+		OperatorGreaterThan:          &GreaterThanOperator{},
+		OperatorGreaterThanInclusive: &GreaterThanInclusiveOperator{},
+		OperatorIn:                   &InOperator{},
+		OperatorNotIn:                &NotInOperator{},
+		OperatorContains:             &ContainsOperator{},
+		OperatorNotContains:          &NotContainsOperator{},
+		OperatorRegex:                &RegexOperator{},
 	}
 }
 
@@ -130,7 +135,7 @@ func toFloat64(value interface{}) (float64, bool) {
 func (o *EqualOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	if factValue == nil || compareValue == nil {
 		return false, &OperatorError{
-			Operator:     Equal,
+			Operator:     OperatorEqual,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          fmt.Errorf("cannot compare nil values"),
@@ -150,7 +155,7 @@ func (o *NotEqualOperator) Evaluate(factValue interface{}, compareValue interfac
 	equal, err := (&EqualOperator{}).Evaluate(factValue, compareValue)
 	if err != nil {
 		return false, &OperatorError{
-			Operator:     NotEqual,
+			Operator:     OperatorNotEqual,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          err,
@@ -166,7 +171,7 @@ func (o *LessThanOperator) Evaluate(factValue interface{}, compareValue interfac
 	cv, ok2 := toFloat64(compareValue)
 	if !ok1 || !ok2 {
 		return false, &OperatorError{
-			Operator:     LessThan,
+			Operator:     OperatorLessThan,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          fmt.Errorf("less_than operator requires numeric values"),
@@ -182,7 +187,7 @@ func (o *LessThanInclusiveOperator) Evaluate(factValue interface{}, compareValue
 	cv, ok2 := toFloat64(compareValue)
 	if !ok1 || !ok2 {
 		return false, &OperatorError{
-			Operator:     LessThanInclusive,
+			Operator:     OperatorLessThanInclusive,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          fmt.Errorf("less_than_inclusive operator requires numeric values"),
@@ -198,7 +203,7 @@ func (o *GreaterThanOperator) Evaluate(factValue interface{}, compareValue inter
 	cv, ok2 := toFloat64(compareValue)
 	if !ok1 || !ok2 {
 		return false, &OperatorError{
-			Operator:     GreaterThan,
+			Operator:     OperatorGreaterThan,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          fmt.Errorf("greater_than operator requires numeric values"),
@@ -214,7 +219,7 @@ func (o *GreaterThanInclusiveOperator) Evaluate(factValue interface{}, compareVa
 	cv, ok2 := toFloat64(compareValue)
 	if !ok1 || !ok2 {
 		return false, &OperatorError{
-			Operator:     GreaterThanInclusive,
+			Operator:     OperatorGreaterThanInclusive,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          fmt.Errorf("greater_than_inclusive operator requires numeric values"),
@@ -232,7 +237,7 @@ func (o *InOperator) Evaluate(factValue interface{}, compareValue interface{}) (
 	// Verify that it's a slice or an array
 	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
 		return false, &OperatorError{
-			Operator:     In,
+			Operator:     OperatorIn,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          fmt.Errorf("in operator requires an array or slice as compareValue"),
@@ -260,7 +265,7 @@ func (o *NotInOperator) Evaluate(factValue interface{}, compareValue interface{}
 	in, err := (&InOperator{}).Evaluate(factValue, compareValue)
 	if err != nil {
 		return false, &OperatorError{
-			Operator:     NotIn,
+			Operator:     OperatorNotIn,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          err,
@@ -283,7 +288,7 @@ func (o *ContainsOperator) Evaluate(factValue interface{}, compareValue interfac
 			equal, err := (&EqualOperator{}).Evaluate(elem, compareValue)
 			if err != nil {
 				return false, &OperatorError{
-					Operator:     Contains,
+					Operator:     OperatorContains,
 					Value:        factValue,
 					CompareValue: compareValue,
 					Err:          fmt.Errorf("error during contains evaluation: %v", err),
@@ -298,7 +303,7 @@ func (o *ContainsOperator) Evaluate(factValue interface{}, compareValue interfac
 		cv, ok := compareValue.(string)
 		if !ok {
 			return false, &OperatorError{
-				Operator:     Contains,
+				Operator:     OperatorContains,
 				Value:        factValue,
 				CompareValue: compareValue,
 				Err:          fmt.Errorf("contains operator requires string compareValue when factValue is a string"),
@@ -307,7 +312,7 @@ func (o *ContainsOperator) Evaluate(factValue interface{}, compareValue interfac
 		return strings.Contains(rv.String(), cv), nil
 	default:
 		return false, &OperatorError{
-			Operator:     Contains,
+			Operator:     OperatorContains,
 			Value:        factValue,
 			CompareValue: compareValue,
 			Err:          fmt.Errorf("contains operator requires array, slice, or string as factValue"),
@@ -323,4 +328,30 @@ func (o *NotContainsOperator) Evaluate(factValue interface{}, compareValue inter
 		return false, err
 	}
 	return !contains, nil
+}
+
+// Evaluate checks if factValue matches the regex pattern in compareValue.
+// Both values must be strings.
+// Returns an error if regex evaluation fails.
+func (o *RegexOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
+	strValue, ok1 := factValue.(string)
+	pattern, ok2 := compareValue.(string)
+	if !ok1 || !ok2 {
+		return false, &OperatorError{
+			Operator:     OperatorRegex,
+			Value:        factValue,
+			CompareValue: compareValue,
+			Err:          fmt.Errorf("regex operator requires string values"),
+		}
+	}
+	matched, err := regexp.MatchString(pattern, strValue)
+	if err != nil {
+		return false, &OperatorError{
+			Operator:     OperatorRegex,
+			Value:        factValue,
+			CompareValue: compareValue,
+			Err:          fmt.Errorf("regex evaluation error: %v", err),
+		}
+	}
+	return matched, nil
 }

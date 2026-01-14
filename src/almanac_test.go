@@ -916,11 +916,11 @@ func TestAddEvent_Success(t *testing.T) {
 		},
 	}
 
-	almanac.AddEvent(event, "success")
+	almanac.AddSuccessEvent(event)
 
-	events := almanac.GetEvents("success")
+	events := almanac.GetSuccessEvents()
 	if len(events) != 1 {
-		t.Errorf("Expected 1 success event, got %d", len(events))
+		t.Errorf("Expected 1 event-callback event, got %d", len(events))
 	}
 
 	if events[0].Type != "test-event" {
@@ -938,9 +938,9 @@ func TestAddEvent_Failure(t *testing.T) {
 		},
 	}
 
-	almanac.AddEvent(event, "failure")
+	almanac.AddFailureEvent(event)
 
-	events := almanac.GetEvents("failure")
+	events := almanac.GetFailureEvents()
 	if len(events) != 1 {
 		t.Errorf("Expected 1 failure event, got %d", len(events))
 	}
@@ -950,40 +950,17 @@ func TestAddEvent_Failure(t *testing.T) {
 	}
 }
 
-func TestAddEvent_InvalidOutcome(t *testing.T) {
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-
-	event := gorulesengine.Event{
-		Type: "invalid-event",
-	}
-
-	// Test with invalid outcome - should be ignored
-	almanac.AddEvent(event, "invalid")
-
-	// Verify no events were added
-	successEvents := almanac.GetEvents("success")
-	failureEvents := almanac.GetEvents("failure")
-
-	if len(successEvents) != 0 {
-		t.Errorf("Expected 0 success events, got %d", len(successEvents))
-	}
-
-	if len(failureEvents) != 0 {
-		t.Errorf("Expected 0 failure events, got %d", len(failureEvents))
-	}
-}
-
 func TestGetEvents_All(t *testing.T) {
 	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
 
 	successEvent := gorulesengine.Event{Type: "success-event"}
 	failureEvent := gorulesengine.Event{Type: "failure-event"}
 
-	almanac.AddEvent(successEvent, "success")
-	almanac.AddEvent(failureEvent, "failure")
+	almanac.AddSuccessEvent(successEvent)
+	almanac.AddFailureEvent(failureEvent)
 
 	// Get all events (default case)
-	allEvents := almanac.GetEvents("")
+	allEvents := almanac.GetEvents()
 
 	if len(allEvents) != 2 {
 		t.Errorf("Expected 2 total events, got %d", len(allEvents))
@@ -1008,23 +985,6 @@ func TestGetEvents_All(t *testing.T) {
 
 	if !foundFailure {
 		t.Error("Expected to find failure event in all events")
-	}
-}
-
-func TestGetEvents_InvalidOutcome(t *testing.T) {
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-
-	successEvent := gorulesengine.Event{Type: "success-event"}
-	failureEvent := gorulesengine.Event{Type: "failure-event"}
-
-	almanac.AddEvent(successEvent, "success")
-	almanac.AddEvent(failureEvent, "failure")
-
-	// Get events with invalid outcome (should return all)
-	allEvents := almanac.GetEvents("invalid-outcome")
-
-	if len(allEvents) != 2 {
-		t.Errorf("Expected 2 total events when using invalid outcome, got %d", len(allEvents))
 	}
 }
 

@@ -62,13 +62,3 @@ func TestEventHandlers_GetHandlers_NonExistentType(t *testing.T) {
 		t.Errorf("Expected nil for non-registered event type, got %v", registered)
 	}
 }
-
-func TestEvent_Constants(t *testing.T) {
-	if EventSuccess != "success" {
-		t.Errorf("Expected EventSuccess to be 'success', got '%s'", EventSuccess)
-	}
-
-	if EventFailure != "failure" {
-		t.Errorf("Expected EventFailure to be 'failure', got '%s'", EventFailure)
-	}
-}

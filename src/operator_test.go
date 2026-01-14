@@ -764,6 +764,53 @@ func TestContainsOperator_EmptyString(t *testing.T) {
 	}
 }
 
+// Test for RegexOperator with strings
+func TestRegexOperator_EvaluateStrings(t *testing.T) {
+	var value = "hello123"
+	var assertedValue string = `^hello\d+$` // regex pattern
+	var failedValue string = `^world\d+$`   // regex pattern
+	var operator gorulesengine.Operator = &gorulesengine.RegexOperator{}
+
+	result, err := operator.Evaluate(value, assertedValue)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if !result {
+		t.Errorf("Expected true, got false")
+	}
+
+	result, err = operator.Evaluate(value, failedValue)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if result {
+		t.Errorf("Expected false, got true")
+	}
+}
+
+// Test for RegexOperator with invalid types
+func TestRegexOperator_EvaluateInvalidTypes(t *testing.T) {
+	var operator gorulesengine.Operator = &gorulesengine.RegexOperator{}
+
+	// Test with non-string factValue
+	_, err := operator.Evaluate(12345, `^\d+$`)
+	if err == nil {
+		t.Errorf("Expected error for non-string factValue, got nil")
+	}
+
+	// Test with non-string compareValue
+	_, err = operator.Evaluate("test string", 12345)
+	if err == nil {
+		t.Errorf("Expected error for non-string compareValue, got nil")
+	}
+
+	// Test with invalid regex pattern
+	_, err = operator.Evaluate("test string", `invalid[regex`)
+	if err == nil {
+		t.Errorf("Expected error for invalid regex pattern, got nil")
+	}
+}
+
 // Tests for GetOperator to verify operator retrieval
 func TestGetOperator(t *testing.T) {
 	tests := []struct {
@@ -822,6 +869,11 @@ func TestGetOperator(t *testing.T) {
 			wantExists: true,
 		},
 		{
+			name:       "Existing operator Regex",
+			opType:     "regex",
+			wantExists: true,
+		},
+		{
 			name:       "Non-existing operator",
 			opType:     "non_existing_operator",
 			wantExists: false,
@@ -865,6 +917,7 @@ func TestGetOperator(t *testing.T) {
 // Définir un opérateur personnalisé simple au niveau du package
 type CustomOperator struct{}
 
+// Implémenter l'interface Operator pour CustomOperator
 func (o *CustomOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	return true, nil
 }

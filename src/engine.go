@@ -5,12 +5,17 @@ import (
 	"sort"
 )
 
+// SortRule defines the sort order for rules.
 type SortRule int
 
 const (
-	SortByPriority          = "priority"
-	SortDefault    SortRule = iota
+	// SortByPriority is the string constant for priority-based sorting
+	SortByPriority = "priority"
+	// SortDefault is the default sort order
+	SortDefault SortRule = iota
+	// SortRuleASC sorts rules in ascending order
 	SortRuleASC
+	// SortRuleDESC sorts rules in descending order
 	SortRuleDESC
 )
 
@@ -20,7 +25,7 @@ type Engine struct {
 	rules []*Rule
 	facts map[FactID]*Fact
 
-	// Registry des callbacks par nom
+	// Callbacks registered by name
 	callbacks map[string]EventHandler
 
 	// Handlers for events
@@ -159,7 +164,7 @@ func (e *Engine) Run(almanac *Almanac) ([]RuleResult, error) {
 
 		if success {
 			// Ajouter à la liste des événements success
-			almanac.AddEvent(rule.Event, EventSuccess)
+			almanac.AddSuccessEvent(rule.Event)
 
 			// 1. Appeler le callback OnSuccess de la règle
 			if rule.OnSuccess != nil {
@@ -201,7 +206,7 @@ func (e *Engine) Run(almanac *Almanac) ([]RuleResult, error) {
 			}
 		} else {
 			// Ajouter à la liste des événements failure
-			almanac.AddEvent(rule.Event, EventFailure)
+			almanac.AddFailureEvent(rule.Event)
 
 			// 1. Appeler le callback OnFailure de la règle
 			if rule.OnFailure != nil {

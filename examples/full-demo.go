@@ -9,33 +9,33 @@ import (
 
 func main() {
 	fmt.Println("🚀 GO RULES ENGINE - Démonstration complète")
-	fmt.Println("=" + string(make([]byte, 50)) + "\n")
+	fmt.Println("=========================================================")
 
 	// Test 1: Engine simple avec une règle
 	fmt.Println("📋 Test 1: Engine avec une règle simple")
 	testEngineSimple()
 
 	// Test 2: Engine avec callbacks nommés (dans JSON)
-	fmt.Println("\n📋 Test 2: Engine avec callbacks nommés")
+	fmt.Println("📋 Test 2: Engine avec callbacks nommés")
 	testEngineWithCallbacks()
 
 	// Test 3: Engine avec handlers globaux
-	fmt.Println("\n📋 Test 3: Engine avec handlers globaux")
+	fmt.Println("📋 Test 3: Engine avec handlers globaux")
 	testEngineWithGlobalHandlers()
 
 	// Test 4: Engine avec plusieurs règles et priorités
-	fmt.Println("\n📋 Test 4: Engine avec plusieurs règles")
+	fmt.Println("📋 Test 4: Engine avec plusieurs règles")
 	testEngineMultipleRules()
 
 	// Test 5: Engine avec handlers par type d'événement
-	fmt.Println("\n📋 Test 5: Engine avec handlers par type")
+	fmt.Println("📋 Test 5: Engine avec handlers par type")
 	testEngineWithEventTypeHandlers()
 
 	// Test 6: Engine avec règles et facts depuis JSON
-	fmt.Println("\n📋 Test 6: Engine avec JSON complet (rules + facts)")
+	fmt.Println("📋 Test 6: Engine avec JSON complet (rules + facts)")
 	testEngineFromJSON()
 
-	fmt.Println("\n✅ Tous les tests sont terminés!")
+	fmt.Println("✅ Tous les tests sont terminés!")
 }
 
 func testEngineSimple() {
@@ -90,7 +90,7 @@ func testEngineSimple() {
 	}
 
 	// 7. Consulter l'historique des événements
-	successEvents := almanac.GetEvents("success")
+	successEvents := almanac.GetSuccessEvents()
 	fmt.Printf("  📊 Événements success: %d\n", len(successEvents))
 }
 
@@ -325,7 +325,7 @@ func testEngineMultipleRules() {
 	fmt.Printf("  📊 Règles réussies: %d/%d\n", successCount, len(results))
 
 	// 7. Consulter l'historique
-	allEvents := almanac.GetEvents("")
+	allEvents := almanac.GetEvents()
 	fmt.Printf("  📚 Total événements dans l'historique: %d\n", len(allEvents))
 }
 
@@ -578,7 +578,7 @@ func testEngineFromJSON() {
 	}
 
 	// 11. Afficher un résumé
-	fmt.Println("\n  📊 RÉSUMÉ:")
+	fmt.Println("  📊 RÉSUMÉ:")
 	fmt.Printf("     Total règles évaluées: %d\n", len(results))
 
 	successCount := 0
@@ -591,7 +591,7 @@ func testEngineFromJSON() {
 	fmt.Printf("     Règles échouées: %d\n", len(results)-successCount)
 
 	// 12. Afficher les événements générés
-	successEvents := almanac.GetEvents("success")
+	successEvents := almanac.GetSuccessEvents()
 	fmt.Printf("\n  📚 Événements générés: %d\n", len(successEvents))
 	for i, evt := range successEvents {
 		fmt.Printf("     %d. Type: %s\n", i+1, evt.Type)

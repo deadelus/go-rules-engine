@@ -8,7 +8,7 @@ import (
 
 func main() {
 	fmt.Println("🚀 Exemple Advanced - Callbacks & Dynamic Facts")
-	fmt.Println("================================================\n")
+	fmt.Println("================================================")
 
 	// Créer l'engine
 	engine := gorulesengine.NewEngine()

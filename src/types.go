@@ -6,44 +6,51 @@ package gorulesengine
 // ConditionType represents the type of logical operator for combining conditions.
 type ConditionType string
 
-// All represents a logical AND - all conditions must be true.
-const All ConditionType = "all"
+const (
+	// AllType represents a logical AND - all conditions must be true.
+	AllType ConditionType = "all"
 
-// Any represents a logical OR - at least one condition must be true.
-const Any ConditionType = "any"
+	// AnyType represents a logical OR - at least one condition must be true.
+	AnyType ConditionType = "any"
 
-// None represents a logical NOT - no conditions must be true.
-const None ConditionType = "none"
+	// NoneType represents a logical NOT - no conditions must be true.
+	NoneType ConditionType = "none"
+)
 
 // OperatorType represents the type of comparison operator used in conditions.
 type OperatorType string
 
-// Equal checks if the fact value equals the condition value.
-const Equal OperatorType = "equal"
+// OperatorEqual checks if the fact value equals the condition value.
+const (
+	OperatorEqual OperatorType = "equal"
 
-// NotEqual checks if the fact value is not equal to the condition value.
-const NotEqual OperatorType = "not_equal"
+	// OperatorNotEqual checks if the fact value is not equal to the condition value.
+	OperatorNotEqual OperatorType = "not_equal"
 
-// LessThan checks if the fact value is less than the condition value.
-const LessThan OperatorType = "less_than"
+	// OperatorLessThan checks if the fact value is less than the condition value.
+	OperatorLessThan OperatorType = "less_than"
 
-// LessThanInclusive checks if the fact value is less than or equal to the condition value.
-const LessThanInclusive OperatorType = "less_than_inclusive"
+	// OperatorLessThanInclusive checks if the fact value is less than or equal to the condition value.
+	OperatorLessThanInclusive OperatorType = "less_than_inclusive"
 
-// GreaterThan checks if the fact value is greater than the condition value.
-const GreaterThan OperatorType = "greater_than"
+	// OperatorGreaterThan checks if the fact value is greater than the condition value.
+	OperatorGreaterThan OperatorType = "greater_than"
 
-// GreaterThanInclusive checks if the fact value is greater than or equal to the condition value.
-const GreaterThanInclusive OperatorType = "greater_than_inclusive"
+	// OperatorGreaterThanInclusive checks if the fact value is greater than or equal to the condition value.
+	OperatorGreaterThanInclusive OperatorType = "greater_than_inclusive"
 
-// In checks if the fact value is contained in the condition value (array).
-const In OperatorType = "in"
+	// OperatorIn checks if the fact value is contained in the condition value (array).
+	OperatorIn OperatorType = "in"
 
-// NotIn checks if the fact value is not contained in the condition value (array).
-const NotIn OperatorType = "not_in"
+	// OperatorNotIn checks if the fact value is not contained in the condition value (array).
+	OperatorNotIn OperatorType = "not_in"
 
-// Contains checks if the fact value contains the condition value (for strings and arrays).
-const Contains OperatorType = "contains"
+	// OperatorContains checks if the fact value contains the condition value (for strings and arrays).
+	OperatorContains OperatorType = "contains"
 
-// NotContains checks if the fact value does not contain the condition value.
-const NotContains OperatorType = "not_contains"
+	// OperatorNotContains checks if the fact value does not contain the condition value.
+	OperatorNotContains OperatorType = "not_contains"
+
+	// OperatorRegex checks if the fact value matches the regex pattern in the condition value.
+	OperatorRegex OperatorType = "regex"
+)
