@@ -880,3 +880,198 @@ func TestEngine_RuleEvaluationError(t *testing.T) {
 		t.Errorf("Expected error type ErrEngine, got %s", ruleEngineErr.Type)
 	}
 }
+
+func TestEngine_WithPrioritySorting_ASC(t *testing.T) {
+	// Test ascending sort
+	sortOrder := gorulesengine.SortRuleASC
+	engine := gorulesengine.NewEngine(gorulesengine.WithPrioritySorting(&sortOrder))
+
+	rule1 := &gorulesengine.Rule{
+		Name:     "rule1",
+		Priority: 10,
+		Conditions: gorulesengine.ConditionSet{
+			All: []gorulesengine.ConditionNode{
+				{
+					Condition: &gorulesengine.Condition{
+						Fact:     "test",
+						Operator: "equal",
+						Value:    true,
+					},
+				},
+			},
+		},
+		Event: gorulesengine.Event{Type: "event1"},
+	}
+
+	rule2 := &gorulesengine.Rule{
+		Name:     "rule2",
+		Priority: 20,
+		Conditions: gorulesengine.ConditionSet{
+			All: []gorulesengine.ConditionNode{
+				{
+					Condition: &gorulesengine.Condition{
+						Fact:     "test",
+						Operator: "equal",
+						Value:    true,
+					},
+				},
+			},
+		},
+		Event: gorulesengine.Event{Type: "event2"},
+	}
+
+	engine.AddRule(rule2) // Add higher priority first
+	engine.AddRule(rule1) // Add lower priority second
+
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+	almanac.AddFact("test", true)
+
+	results, err := engine.Run(almanac)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	// With ASC sorting, rule1 (priority 10) should be evaluated first
+	if results[0].Rule.Name != "rule1" {
+		t.Errorf("Expected rule1 to be evaluated first with ASC sorting, got %s", results[0].Rule.Name)
+	}
+}
+
+func TestEngine_WithPrioritySorting_DefaultValue(t *testing.T) {
+	// Test default sort (invalid value should default to SortDefault)
+	sortOrder := gorulesengine.SortRule(999) // Invalid value
+	engine := gorulesengine.NewEngine(gorulesengine.WithPrioritySorting(&sortOrder))
+
+	rule1 := &gorulesengine.Rule{
+		Name:     "rule1",
+		Priority: 10,
+		Conditions: gorulesengine.ConditionSet{
+			All: []gorulesengine.ConditionNode{
+				{
+					Condition: &gorulesengine.Condition{
+						Fact:     "test",
+						Operator: "equal",
+						Value:    true,
+					},
+				},
+			},
+		},
+		Event: gorulesengine.Event{Type: "event1"},
+	}
+
+	engine.AddRule(rule1)
+
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+	almanac.AddFact("test", true)
+
+	results, err := engine.Run(almanac)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("Expected 1 result, got %d", len(results))
+	}
+}
+
+func TestEngine_WithoutPrioritySorting(t *testing.T) {
+	// Create engine with priority sorting disabled
+	engine := gorulesengine.NewEngine(gorulesengine.WithoutPrioritySorting())
+
+	rule1 := &gorulesengine.Rule{
+		Name:     "rule1",
+		Priority: 10,
+		Conditions: gorulesengine.ConditionSet{
+			All: []gorulesengine.ConditionNode{
+				{
+					Condition: &gorulesengine.Condition{
+						Fact:     "test",
+						Operator: "equal",
+						Value:    true,
+					},
+				},
+			},
+		},
+		Event: gorulesengine.Event{Type: "event1"},
+	}
+
+	rule2 := &gorulesengine.Rule{
+		Name:     "rule2",
+		Priority: 20,
+		Conditions: gorulesengine.ConditionSet{
+			All: []gorulesengine.ConditionNode{
+				{
+					Condition: &gorulesengine.Condition{
+						Fact:     "test",
+						Operator: "equal",
+						Value:    true,
+					},
+				},
+			},
+		},
+		Event: gorulesengine.Event{Type: "event2"},
+	}
+
+	// Add rules in a specific order
+	engine.AddRule(rule2) // Add higher priority first
+	engine.AddRule(rule1) // Add lower priority second
+
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+	almanac.AddFact("test", true)
+
+	results, err := engine.Run(almanac)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	// Without sorting, rules should be evaluated in the order they were added
+	if results[0].Rule.Name != "rule2" {
+		t.Errorf("Expected rule2 to be evaluated first (insertion order), got %s", results[0].Rule.Name)
+	}
+	if results[1].Rule.Name != "rule1" {
+		t.Errorf("Expected rule1 to be evaluated second (insertion order), got %s", results[1].Rule.Name)
+	}
+}
+
+func TestEngine_NewEngine_WithMultipleOptions(t *testing.T) {
+	// Test NewEngine with multiple options
+	sortOrder := gorulesengine.SortRuleASC
+	engine := gorulesengine.NewEngine(
+		gorulesengine.WithPrioritySorting(&sortOrder),
+	)
+
+	if engine == nil {
+		t.Fatal("NewEngine should return a non-nil engine")
+	}
+
+	rule := &gorulesengine.Rule{
+		Name:     "test-rule",
+		Priority: 10,
+		Conditions: gorulesengine.ConditionSet{
+			All: []gorulesengine.ConditionNode{
+				{
+					Condition: &gorulesengine.Condition{
+						Fact:     "test",
+						Operator: "equal",
+						Value:    true,
+					},
+				},
+			},
+		},
+		Event: gorulesengine.Event{Type: "test"},
+	}
+
+	engine.AddRule(rule)
+
+	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+	almanac.AddFact("test", true)
+
+	results, err := engine.Run(almanac)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("Expected 1 result, got %d", len(results))
+	}
+}

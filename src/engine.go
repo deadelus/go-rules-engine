@@ -1,6 +1,18 @@
 package gorulesengine
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
+
+type SortRule int
+
+const (
+	SortByPriority          = "priority"
+	SortDefault    SortRule = iota
+	SortRuleASC
+	SortRuleDESC
+)
 
 // Engine is the core rules engine that manages rules, facts, and event handlers.
 // It evaluates rules against facts and triggers events when rules match.
@@ -17,11 +29,57 @@ type Engine struct {
 
 	// Handler mapping for event types
 	eventHandlers map[string][]EventHandler
+
+	// Additional engine options
+	options map[string]interface{}
+}
+
+// EngineOption defines a function type for configuring the Engine.
+type EngineOption func(*Engine)
+
+// WithPrioritySorting configures the engine to sort rules by priority before evaluation.
+func WithPrioritySorting(o *SortRule) EngineOption {
+	var order SortRule
+
+	if o == nil {
+		order = SortRuleDESC
+	} else {
+		switch *o {
+		case SortRuleASC, SortRuleDESC:
+			order = *o
+		default:
+			order = SortDefault
+		}
+	}
+
+	return func(e *Engine) {
+		options := e.options
+		if options == nil {
+			options = make(map[string]interface{})
+			e.options = options
+		}
+
+		e.options[SortByPriority] = order
+	}
+}
+
+// WithoutPrioritySorting configures the engine to not sort rules by priority.
+func WithoutPrioritySorting() EngineOption {
+	return func(e *Engine) {
+		delete(e.options, SortByPriority)
+	}
 }
 
 // NewEngine creates a new rules engine instance
-func NewEngine() *Engine {
-	return &Engine{}
+func NewEngine(opts ...EngineOption) *Engine {
+	e := &Engine{}
+	WithPrioritySorting(nil)(e) // Default to priority sorting
+
+	for _, opt := range opts {
+		opt(e)
+	}
+
+	return e
 }
 
 // AddRule adds a rule to the engine
@@ -74,6 +132,9 @@ func (e *Engine) On(eventType string, handler EventHandler) {
 // If any error occurs during evaluation, execution stops and the error is returned.
 func (e *Engine) Run(almanac *Almanac) ([]RuleResult, error) {
 	var results []RuleResult
+
+	// Sort rules by priority if configured
+	e.sortRulesByPriority()
 
 	for _, rule := range e.rules {
 		// Évaluer la règle
@@ -173,4 +234,17 @@ func (e *Engine) Run(almanac *Almanac) ([]RuleResult, error) {
 	}
 
 	return results, nil
+}
+
+// sortRulesByPriority sorts the engine's rules by their priority in descending order.
+func (e *Engine) sortRulesByPriority() {
+	if e.options[SortByPriority] != nil {
+		// Sort by priority
+		sort.SliceStable(e.rules, func(i, j int) bool {
+			if e.options[SortByPriority] == SortRuleASC {
+				return e.rules[i].Priority < e.rules[j].Priority
+			}
+			return e.rules[i].Priority > e.rules[j].Priority
+		})
+	}
 }

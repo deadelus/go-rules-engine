@@ -1,0 +1,1549 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>src: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/deadelus/go-rules-engine/src/almanac.go (100.0%)</option>
+				
+				<option value="file1">github.com/deadelus/go-rules-engine/src/condition.go (100.0%)</option>
+				
+				<option value="file2">github.com/deadelus/go-rules-engine/src/engine.go (89.9%)</option>
+				
+				<option value="file3">github.com/deadelus/go-rules-engine/src/errors.go (100.0%)</option>
+				
+				<option value="file4">github.com/deadelus/go-rules-engine/src/event.go (100.0%)</option>
+				
+				<option value="file5">github.com/deadelus/go-rules-engine/src/fact.go (100.0%)</option>
+				
+				<option value="file6">github.com/deadelus/go-rules-engine/src/operator.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package gorulesengine
+
+import (
+        "fmt"
+        "reflect"
+        "sync"
+
+        "github.com/oliveagle/jsonpath"
+)
+
+// AlmanacOptionKeyAllowUndefinedFacts is the option key for allowing undefined facts.
+const AlmanacOptionKeyAllowUndefinedFacts = "allowUndefinedFacts"
+
+// Almanac stores facts and their computed values during rule evaluation.
+// It maintains a cache for fact values, tracks events, and manages rule results.
+// Almanac is thread-safe for concurrent access.
+type Almanac struct {
+        factMap          map[FactID]*Fact
+        factResultsCache map[string]interface{}
+        events           struct {
+                success []Event
+                failure []Event
+        }
+        ruleResults  []RuleResult
+        pathResolver PathResolver
+        options      map[string]interface{}
+        mutex        sync.RWMutex
+}
+
+// AlmanacOption defines a functional option for configuring an Almanac.
+type AlmanacOption func(*Almanac)
+
+// PathResolver resolves nested values within facts using a path expression (e.g., JSONPath).
+type PathResolver func(value interface{}, path string) (interface{}, error)
+
+// DefaultPathResolver implements JSONPath resolution for accessing nested fact values.
+// Example: "$.user.profile.age" accesses deeply nested data.
+func DefaultPathResolver(value interface{}, path string) (interface{}, error) <span class="cov8" title="1">{
+        if path == "" </span><span class="cov8" title="1">{
+                return value, nil
+        }</span>
+        <span class="cov8" title="1">return jsonpath.JsonPathLookup(value, path)</span>
+}
+
+// AllowUndefinedFacts configures the almanac to return nil instead of errors for undefined facts.
+// This is useful when you want to gracefully handle missing data.
+func AllowUndefinedFacts() AlmanacOption <span class="cov8" title="1">{
+        return func(a *Almanac) </span><span class="cov8" title="1">{
+                a.options[AlmanacOptionKeyAllowUndefinedFacts] = true
+        }</span>
+}
+
+// NewAlmanac creates a new Almanac instance with the provided facts and options.
+// The almanac is initialized with default settings including undefined fact handling.
+//
+// Example:
+//
+//        almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+//        almanac.AddFact("age", 25)
+//        almanac.AddFact("country", "FR")
+func NewAlmanac(facts []*Fact, opts ...AlmanacOption) *Almanac <span class="cov8" title="1">{
+        a := &amp;Almanac{
+                factMap:          make(map[FactID]*Fact),
+                factResultsCache: make(map[string]interface{}),
+                events: struct {
+                        success []Event
+                        failure []Event
+                }{},
+                ruleResults:  []RuleResult{},
+                pathResolver: DefaultPathResolver,
+                options:      make(map[string]interface{}),
+        }
+
+        AllowUndefinedFacts()(a)
+
+        for _, opt := range opts </span><span class="cov8" title="1">{
+                opt(a)
+        }</span>
+
+        // Add provided facts to the fact map
+        <span class="cov8" title="1">for _, fact := range facts </span><span class="cov8" title="1">{
+                a.factMap[fact.ID()] = fact
+        }</span>
+        <span class="cov8" title="1">return a</span>
+}
+
+// AddFact adds a fact to the almanac.
+// The valueOrMethod can be either a static value or a function for dynamic facts.
+// Optional FactOptions can be provided to configure caching and priority.
+//
+// Example:
+//
+//        // Static fact
+//        almanac.AddFact("age", 25)
+//
+//        // Dynamic fact
+//        almanac.AddFact("temperature", func(params map[string]interface{}) interface{} {
+//            return fetchTemperature()
+//        })
+func (a *Almanac) AddFact(id FactID, valueOrMethod interface{}, opts ...FactOption) error <span class="cov8" title="1">{
+        a.mutex.Lock()
+        defer a.mutex.Unlock()
+
+        fact := NewFact(id, valueOrMethod, opts...)
+        a.factMap[id] = fact
+
+        // Pre-cache the static fact value if caching is enabled
+        if cacheEnabled, ok := fact.options[FactOptionKeyCache].(bool); ok &amp;&amp; cacheEnabled </span><span class="cov8" title="1">{
+                if !fact.IsDynamic() </span><span class="cov8" title="1">{
+                        cacheKey, _ := fact.GetCacheKey()
+                        a.factResultsCache[cacheKey] = fact.ValueOrMethod()
+                }</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// GetFactValue retrieves the value of a fact by its ID.
+// For dynamic facts, params can be passed to the computation function.
+// The path parameter allows accessing nested values using JSONPath.
+//
+// Example:
+//
+//        // Simple fact access
+//        age, _ := almanac.GetFactValue("age", nil, "")
+//
+//        // Nested access with JSONPath
+//        city, _ := almanac.GetFactValue("user", nil, "$.address.city")
+func (a *Almanac) GetFactValue(factID FactID, params map[string]interface{}, path string) (interface{}, error) <span class="cov8" title="1">{
+        var fact *Fact
+        var exists bool
+        var cachedVal interface{}
+        var cached bool
+
+        // Read lock for concurrent access
+        a.mutex.RLock()
+        fact, exists = a.factMap[factID]
+        a.mutex.RUnlock()
+
+        // Fact not found
+        if !exists </span><span class="cov8" title="1">{
+                // Check if undefined facts are allowed
+                if allowUndefined, ok := a.options[AlmanacOptionKeyAllowUndefinedFacts].(bool); ok &amp;&amp; allowUndefined </span><span class="cov8" title="1">{
+                        return nil, nil
+                }</span>
+                <span class="cov8" title="1">return nil, &amp;AlmanacError{
+                        Payload: "factID=" + string(factID),
+                        Err:     fmt.Errorf("fact '%s' is not defined in the almanac", factID),
+                }</span>
+        }
+
+        // Check cache first
+        <span class="cov8" title="1">if val, _ := fact.GetOption(FactOptionKeyCache); val == true </span><span class="cov8" title="1">{
+                cachedVal, cached = a.GetFactValueFromCache(factID)
+        }</span>
+
+        <span class="cov8" title="1">var val interface{}
+
+        // If cached value exists, use it
+        if cached </span><span class="cov8" title="1">{
+                val = cachedVal
+        }</span> else<span class="cov8" title="1"> {
+                // Calculate fact value
+                val = fact.Calculate(params)
+
+                // Cache the result if caching is enabled
+                if cacheEnabled, ok := fact.options[FactOptionKeyCache].(bool); ok &amp;&amp; cacheEnabled </span><span class="cov8" title="1">{
+                        // Generate cache key for storing the result
+                        key, _ := fact.GetCacheKey()
+                        a.mutex.Lock()
+                        a.factResultsCache[key] = val
+                        a.mutex.Unlock()
+                }</span>
+        }
+
+        // Apply path resolution if path is provided
+        <span class="cov8" title="1">val, err := a.TraversePath(val, path)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, &amp;AlmanacError{
+                        Payload: fmt.Sprintf("factID=%s, path=%s", factID, path),
+                        Err:     fmt.Errorf("failed to resolve path '%s' for fact '%s': %v", path, factID, err),
+                }
+        }</span>
+
+        <span class="cov8" title="1">return val, nil</span>
+}
+
+// GetFactValueFromCache retrieves a fact value directly from the cache
+func (a *Almanac) GetFactValueFromCache(factID FactID) (interface{}, bool) <span class="cov8" title="1">{
+        a.mutex.RLock()
+        defer a.mutex.RUnlock()
+
+        fact := a.factMap[factID]
+
+        cacheKey, _ := fact.GetCacheKey()
+
+        cachedVal, cached := a.factResultsCache[cacheKey]
+
+        return cachedVal, cached
+}</span>
+
+// TraversePath is a helper to traverse nested structures based on a path expression.
+// It uses the configured PathResolver to access nested values within complex data structures.
+func (a *Almanac) TraversePath(data interface{}, path string) (interface{}, error) <span class="cov8" title="1">{
+        var val = data
+        // Apply path resolution if path is provided
+        if path != "" </span><span class="cov8" title="1">{
+                // Check if value is a complex type (map, slice, struct) that supports path resolution
+                valType := reflect.TypeOf(data)
+                if valType != nil </span><span class="cov8" title="1">{
+                        kind := valType.Kind()
+                        // Only apply path resolver to complex types
+                        if kind == reflect.Map || kind == reflect.Slice || kind == reflect.Struct || kind == reflect.Ptr </span><span class="cov8" title="1">{
+                                return a.pathResolver(data, path)
+                        }</span>
+                }
+        }
+        // For primitive types (string, int, bool, etc.), path resolution doesn't make sense
+        // Return the value as-is
+        <span class="cov8" title="1">return val, nil</span>
+}
+
+// GetOptions returns the almanac options
+func (a *Almanac) GetOptions() map[string]interface{} <span class="cov8" title="1">{
+        return a.options
+}</span>
+
+// GetFacts returns the almanac's fact map
+func (a *Almanac) GetFacts() map[FactID]*Fact <span class="cov8" title="1">{
+        return a.factMap
+}</span>
+
+// AddEvent adds an event to the almanac under success or failure
+func (a *Almanac) AddEvent(event Event, outcome string) <span class="cov8" title="1">{
+        a.mutex.Lock()
+        defer a.mutex.Unlock()
+
+        switch outcome </span>{
+        case "success":<span class="cov8" title="1">
+                a.events.success = append(a.events.success, event)</span>
+        case "failure":<span class="cov8" title="1">
+                a.events.failure = append(a.events.failure, event)</span>
+        default:<span class="cov8" title="1"></span>
+                // Invalid outcome, ignore
+        }
+}
+
+// GetEvents retrieves events from the almanac based on outcome
+func (a *Almanac) GetEvents(outcome string) []Event <span class="cov8" title="1">{
+        a.mutex.RLock()
+        defer a.mutex.RUnlock()
+
+        switch outcome </span>{
+        case "success":<span class="cov8" title="1">
+                return a.events.success</span>
+        case "failure":<span class="cov8" title="1">
+                return a.events.failure</span>
+        default:<span class="cov8" title="1">
+                return append(a.events.success, a.events.failure...)</span>
+        }
+}
+
+// AddResult adds a rule result to the almanac
+func (a *Almanac) AddResult(result RuleResult) <span class="cov8" title="1">{
+        a.mutex.Lock()
+        defer a.mutex.Unlock()
+
+        a.ruleResults = append(a.ruleResults, result)
+}</span>
+
+// GetResults returns all rule results from the almanac
+func (a *Almanac) GetResults() []RuleResult <span class="cov8" title="1">{
+        a.mutex.RLock()
+        defer a.mutex.RUnlock()
+
+        return a.ruleResults
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package gorulesengine
+
+import (
+        "encoding/json"
+        "fmt"
+)
+
+// Condition represents a single condition that compares a fact value against an expected value using an operator.
+// Conditions can optionally use JSONPath to access nested values within facts.
+//
+// Example:
+//
+//        condition := &amp;gorulesengine.Condition{
+//            Fact:     "age",
+//            Operator: "greater_than",
+//            Value:    18,
+//        }
+type Condition struct {
+        Fact     FactID                 `json:"fact"`             // The fact identifier to evaluate
+        Operator OperatorType           `json:"operator"`         // The comparison operator to use
+        Value    interface{}            `json:"value"`            // The expected value to compare against
+        Path     string                 `json:"path,omitempty"`   // Optional JSONPath to access nested fact values
+        Params   map[string]interface{} `json:"params,omitempty"` // Optional parameters for dynamic facts
+}
+
+// ConditionSet represents a group of conditions combined with logical operators (all/any/none).
+// ConditionSets can be nested to create complex boolean logic.
+//
+// Example:
+//
+//        conditionSet := gorulesengine.ConditionSet{
+//            All: []gorulesengine.ConditionNode{
+//                {Condition: &amp;condition1},
+//                {Condition: &amp;condition2},
+//            },
+//        }
+type ConditionSet struct {
+        All  []ConditionNode `json:"all,omitempty"`  // All conditions must be true (AND)
+        Any  []ConditionNode `json:"any,omitempty"`  // At least one condition must be true (OR)
+        None []ConditionNode `json:"none,omitempty"` // No conditions must be true (NOT)
+}
+
+// ConditionNode represents either a single Condition or a nested ConditionSet.
+// This allows for recursive nesting of conditions to build complex boolean expressions.
+type ConditionNode struct {
+        Condition *Condition    // A single condition to evaluate
+        SubSet    *ConditionSet // A nested set of conditions
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for ConditionNode.
+// It attempts to unmarshal either a Condition or a ConditionSet from the JSON data.
+func (n *ConditionNode) UnmarshalJSON(data []byte) error <span class="cov8" title="1">{
+        var cond Condition
+        err1 := json.Unmarshal(data, &amp;cond)
+        if err1 == nil &amp;&amp; cond.Fact != "" </span><span class="cov8" title="1">{
+                n.Condition = &amp;cond
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">var subset ConditionSet
+        err2 := json.Unmarshal(data, &amp;subset)
+        if err2 == nil </span><span class="cov8" title="1">{
+                n.SubSet = &amp;subset
+                return nil
+        }</span>
+
+        // If both failed, wrap the error
+        <span class="cov8" title="1">return &amp;RuleEngineError{
+                Type: ErrJSON,
+                Msg:  "failed to unmarshal ConditionNode",
+                Err:  fmt.Errorf("data: %s, errors: %v, %v", string(data), err1, err2),
+        }</span>
+}
+
+// Evaluate evaluates the condition node, whether it's a condition or a subset
+func evaluateConditionNode(node *ConditionNode, almanac *Almanac) (bool, error) <span class="cov8" title="1">{
+        if node.Condition != nil </span><span class="cov8" title="1">{
+                return node.Condition.Evaluate(almanac)
+        }</span> else<span class="cov8" title="1"> if node.SubSet != nil </span><span class="cov8" title="1">{
+                return node.SubSet.Evaluate(almanac)
+        }</span>
+
+        <span class="cov8" title="1">return false, &amp;ConditionError{
+                Condition: Condition{},
+                Err:       fmt.Errorf("invalid condition node: neither condition nor subset is defined"),
+        }</span>
+}
+
+// Evaluate evaluates the condition against the almanac
+func (c *Condition) Evaluate(almanac *Almanac) (bool, error) <span class="cov8" title="1">{
+        // Here params can be passed to the fact calculation
+        // Usefull only for dynamic facts
+        // For static facts, params are ignored
+        factValue, err := almanac.GetFactValue(c.Fact, c.Params, c.Path)
+        if err != nil </span><span class="cov8" title="1">{
+                return false, &amp;ConditionError{
+                        Condition: *c,
+                        Err:       fmt.Errorf("failed to get fact value: %v", err),
+                }
+        }</span>
+
+        <span class="cov8" title="1">operator, err := GetOperator(c.Operator)
+        if err != nil </span><span class="cov8" title="1">{
+                return false, &amp;ConditionError{
+                        Condition: *c,
+                        Err:       fmt.Errorf("failed to get operator: %v", err),
+                }
+        }</span>
+
+        <span class="cov8" title="1">result, err := operator.Evaluate(factValue, c.Value)
+        if err != nil </span><span class="cov8" title="1">{
+                return false, &amp;ConditionError{
+                        Condition: *c,
+                        Err:       fmt.Errorf("operator evaluation failed: %v", err),
+                }
+        }</span>
+
+        <span class="cov8" title="1">return result, nil</span>
+}
+
+// Evaluate evaluates the condition set against the almanac
+func (cs *ConditionSet) Evaluate(almanac *Almanac) (bool, error) <span class="cov8" title="1">{
+        // Evaluate "all" conditions
+        for _, node := range cs.All </span><span class="cov8" title="1">{
+                result, err := evaluateConditionNode(&amp;node, almanac)
+                if err != nil </span><span class="cov8" title="1">{
+                        return false, err
+                }</span>
+                <span class="cov8" title="1">if !result </span><span class="cov8" title="1">{
+                        return false, nil
+                }</span>
+        }
+
+        // Evaluate "any" conditions
+        <span class="cov8" title="1">if len(cs.Any) &gt; 0 </span><span class="cov8" title="1">{
+                anyMatched := false
+                for _, node := range cs.Any </span><span class="cov8" title="1">{
+                        result, err := evaluateConditionNode(&amp;node, almanac)
+                        if err != nil </span><span class="cov8" title="1">{
+                                return false, err
+                        }</span>
+                        <span class="cov8" title="1">if result </span><span class="cov8" title="1">{
+                                anyMatched = true
+                                break</span>
+                        }
+                }
+                <span class="cov8" title="1">if !anyMatched </span><span class="cov8" title="1">{
+                        return false, nil
+                }</span>
+        }
+
+        // Evaluate "none" conditions
+        <span class="cov8" title="1">for _, node := range cs.None </span><span class="cov8" title="1">{
+                result, err := evaluateConditionNode(&amp;node, almanac)
+                if err != nil </span><span class="cov8" title="1">{
+                        return false, err
+                }</span>
+                <span class="cov8" title="1">if result </span><span class="cov8" title="1">{
+                        return false, nil
+                }</span>
+        }
+
+        <span class="cov8" title="1">return true, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package gorulesengine
+
+import (
+        "fmt"
+        "sort"
+)
+
+type SortRule int
+
+const (
+        SortByPriority          = "priority"
+        SortDefault    SortRule = iota
+        SortRuleASC
+        SortRuleDESC
+)
+
+// Engine is the core rules engine that manages rules, facts, and event handlers.
+// It evaluates rules against facts and triggers events when rules match.
+type Engine struct {
+        rules []*Rule
+        facts map[FactID]*Fact
+
+        // Registry des callbacks par nom
+        callbacks map[string]EventHandler
+
+        // Handlers for events
+        successHandlers []EventHandler
+        failureHandlers []EventHandler
+
+        // Handler mapping for event types
+        eventHandlers map[string][]EventHandler
+
+        // Additional engine options
+        options map[string]interface{}
+}
+
+// EngineOption defines a function type for configuring the Engine.
+type EngineOption func(*Engine)
+
+// WithPrioritySorting configures the engine to sort rules by priority before evaluation.
+func WithPrioritySorting(o *SortRule) EngineOption <span class="cov8" title="1">{
+        var order SortRule
+
+        if o == nil </span><span class="cov8" title="1">{
+                order = SortRuleDESC
+        }</span> else<span class="cov0" title="0"> {
+                switch *o </span>{
+                case SortRuleASC, SortRuleDESC:<span class="cov0" title="0">
+                        order = *o</span>
+                default:<span class="cov0" title="0">
+                        order = SortDefault</span>
+                }
+        }
+
+        <span class="cov8" title="1">return func(e *Engine) </span><span class="cov8" title="1">{
+                options := e.options
+                if options == nil </span><span class="cov8" title="1">{
+                        options = make(map[string]interface{})
+                        e.options = options
+                }</span>
+
+                <span class="cov8" title="1">e.options[SortByPriority] = order</span>
+        }
+}
+
+// WithoutPrioritySorting configures the engine to not sort rules by priority.
+func WithoutPrioritySorting() EngineOption <span class="cov0" title="0">{
+        return func(e *Engine) </span><span class="cov0" title="0">{
+                delete(e.options, SortByPriority)
+        }</span>
+}
+
+// NewEngine creates a new rules engine instance
+func NewEngine(opts ...EngineOption) *Engine <span class="cov8" title="1">{
+        e := &amp;Engine{}
+        WithPrioritySorting(nil)(e) // Default to priority sorting
+
+        for _, opt := range opts </span><span class="cov0" title="0">{
+                opt(e)
+        }</span>
+
+        <span class="cov8" title="1">return e</span>
+}
+
+// AddRule adds a rule to the engine
+func (e *Engine) AddRule(rule *Rule) <span class="cov8" title="1">{
+        e.rules = append(e.rules, rule)
+}</span>
+
+// AddFact adds a fact to the engine
+func (e *Engine) AddFact(fact *Fact) <span class="cov8" title="1">{
+        if e.facts == nil </span><span class="cov8" title="1">{
+                e.facts = make(map[FactID]*Fact)
+        }</span>
+        <span class="cov8" title="1">e.facts[fact.ID()] = fact</span>
+}
+
+// RegisterCallback registers a named callback that can be referenced by rules.
+// Callbacks are invoked when rules succeed or fail, as specified in the rule's OnSuccess or OnFailure fields.
+func (e *Engine) RegisterCallback(name string, handler EventHandler) <span class="cov8" title="1">{
+        if e.callbacks == nil </span><span class="cov8" title="1">{
+                e.callbacks = make(map[string]EventHandler)
+        }</span>
+        <span class="cov8" title="1">e.callbacks[name] = handler</span>
+}
+
+// OnSuccess registers a global handler that is called for every successful rule evaluation.
+// Multiple success handlers can be registered and will all be invoked in order.
+func (e *Engine) OnSuccess(handler EventHandler) <span class="cov8" title="1">{
+        e.successHandlers = append(e.successHandlers, handler)
+}</span>
+
+// OnFailure registers a global handler that is called for every failed rule evaluation.
+// Multiple failure handlers can be registered and will all be invoked in order.
+func (e *Engine) OnFailure(handler EventHandler) <span class="cov8" title="1">{
+        e.failureHandlers = append(e.failureHandlers, handler)
+}</span>
+
+// On registers a handler for a specific event type.
+// When a rule triggers an event of this type, the handler will be invoked.
+// Multiple handlers can be registered for the same event type.
+func (e *Engine) On(eventType string, handler EventHandler) <span class="cov8" title="1">{
+        if e.eventHandlers == nil </span><span class="cov8" title="1">{
+                e.eventHandlers = make(map[string][]EventHandler)
+        }</span>
+        <span class="cov8" title="1">e.eventHandlers[eventType] = append(e.eventHandlers[eventType], handler)</span>
+}
+
+// Run executes all rules in the engine against the provided almanac.
+// Rules are evaluated in priority order (higher priority first).
+// Returns a slice of RuleResults containing the outcome of each rule evaluation.
+// If any error occurs during evaluation, execution stops and the error is returned.
+func (e *Engine) Run(almanac *Almanac) ([]RuleResult, error) <span class="cov8" title="1">{
+        var results []RuleResult
+
+        // Sort rules by priority if configured
+        e.sortRulesByPriority()
+
+        for _, rule := range e.rules </span><span class="cov8" title="1">{
+                // Évaluer la règle
+                success, err := rule.Conditions.Evaluate(almanac)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, &amp;RuleEngineError{
+                                Type: ErrEngine,
+                                Msg:  fmt.Sprintf("Error evaluating rule '%s': %v", rule.Name, err),
+                                Err:  err,
+                        }
+                }</span>
+
+                // Créer le résultat
+                <span class="cov8" title="1">ruleResult := RuleResult{
+                        Event:  rule.Event,
+                        Rule:   rule,
+                        Result: success,
+                }
+
+                // Stocker dans l'almanac
+                almanac.AddResult(ruleResult)
+
+                if success </span><span class="cov8" title="1">{
+                        // Ajouter à la liste des événements success
+                        almanac.AddEvent(rule.Event, EventSuccess)
+
+                        // 1. Appeler le callback OnSuccess de la règle
+                        if rule.OnSuccess != nil </span><span class="cov8" title="1">{
+                                if handler, exists := e.callbacks[*rule.OnSuccess]; exists </span><span class="cov8" title="1">{
+                                        if err := handler(rule.Event, almanac, ruleResult); err != nil </span><span class="cov8" title="1">{
+                                                return nil, &amp;RuleEngineError{
+                                                        Type: ErrEngine,
+                                                        Msg:  fmt.Sprintf("Error in OnSuccess callback for rule '%s': %v", rule.Name, err),
+                                                        Err:  err,
+                                                }
+                                        }</span>
+                                } else<span class="cov8" title="1"> {
+                                        fmt.Printf("Warning: OnSuccess callback '%s' not registered\n", *rule.OnSuccess)
+                                }</span>
+                        }
+
+                        // 2. Appeler les handlers globaux "success"
+                        <span class="cov8" title="1">for _, handler := range e.successHandlers </span><span class="cov8" title="1">{
+                                if err := handler(rule.Event, almanac, ruleResult); err != nil </span><span class="cov8" title="1">{
+                                        return nil, &amp;RuleEngineError{
+                                                Type: ErrEngine,
+                                                Msg:  fmt.Sprintf("Error in success handler for rule '%s': %v", rule.Name, err),
+                                                Err:  err,
+                                        }
+                                }</span>
+                        }
+
+                        // 3. Appeler les handlers spécifiques à ce type d'événement
+                        <span class="cov8" title="1">if handlers, exists := e.eventHandlers[rule.Event.Type]; exists </span><span class="cov8" title="1">{
+                                for _, handler := range handlers </span><span class="cov8" title="1">{
+                                        if err := handler(rule.Event, almanac, ruleResult); err != nil </span><span class="cov8" title="1">{
+                                                return nil, &amp;RuleEngineError{
+                                                        Type: ErrEngine,
+                                                        Msg:  fmt.Sprintf("Error in event handler for event type '%s' in rule '%s': %v", rule.Event.Type, rule.Name, err),
+                                                        Err:  err,
+                                                }
+                                        }</span>
+                                }
+                        }
+                } else<span class="cov8" title="1"> {
+                        // Ajouter à la liste des événements failure
+                        almanac.AddEvent(rule.Event, EventFailure)
+
+                        // 1. Appeler le callback OnFailure de la règle
+                        if rule.OnFailure != nil </span><span class="cov8" title="1">{
+                                if handler, exists := e.callbacks[*rule.OnFailure]; exists </span><span class="cov8" title="1">{
+                                        if err := handler(rule.Event, almanac, ruleResult); err != nil </span><span class="cov8" title="1">{
+                                                return nil, &amp;RuleEngineError{
+                                                        Type: ErrEngine,
+                                                        Msg:  fmt.Sprintf("Error in OnFailure callback for rule '%s': %v", rule.Name, err),
+                                                        Err:  err,
+                                                }
+                                        }</span>
+                                } else<span class="cov8" title="1"> {
+                                        fmt.Printf("Warning: OnFailure callback '%s' not registered\n", *rule.OnFailure)
+                                }</span>
+                        }
+
+                        // 2. Appeler les handlers globaux "failure"
+                        <span class="cov8" title="1">for _, handler := range e.failureHandlers </span><span class="cov8" title="1">{
+                                if err := handler(rule.Event, almanac, ruleResult); err != nil </span><span class="cov8" title="1">{
+                                        return nil, &amp;RuleEngineError{
+                                                Type: ErrEngine,
+                                                Msg:  fmt.Sprintf("Error in failure handler for rule '%s': %v", rule.Name, err),
+                                                Err:  err,
+                                        }
+                                }</span>
+                        }
+                }
+
+                <span class="cov8" title="1">results = append(results, ruleResult)</span>
+        }
+
+        <span class="cov8" title="1">return results, nil</span>
+}
+
+// sortRulesByPriority sorts the engine's rules by their priority in descending order.
+func (e *Engine) sortRulesByPriority() <span class="cov8" title="1">{
+        if e.options[SortByPriority] != nil </span><span class="cov8" title="1">{
+                // Sort by priority
+                sort.SliceStable(e.rules, func(i, j int) bool </span><span class="cov8" title="1">{
+                        if e.options[SortByPriority] == SortRuleASC </span><span class="cov0" title="0">{
+                                return e.rules[i].Priority &lt; e.rules[j].Priority
+                        }</span>
+                        <span class="cov8" title="1">return e.rules[i].Priority &gt; e.rules[j].Priority</span>
+                })
+        }
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package gorulesengine
+
+import "fmt"
+
+// ErrorType identifies the category of error that occurred.
+type ErrorType string
+
+const (
+        // ErrEngine indicates a general engine execution error.
+        ErrEngine ErrorType = "ENGINE_ERROR"
+        // ErrAlmanac indicates an error related to the almanac or fact management.
+        ErrAlmanac ErrorType = "ALMANAC_ERROR"
+        // ErrFact indicates an error computing or accessing a fact value.
+        ErrFact ErrorType = "FACT_ERROR"
+        // ErrRule indicates an error in rule definition or structure.
+        ErrRule ErrorType = "RULE_ERROR"
+        // ErrCondition indicates an error evaluating a condition.
+        ErrCondition ErrorType = "CONDITION_ERROR"
+        // ErrOperator indicates an error with an operator (not found, invalid, etc.).
+        ErrOperator ErrorType = "OPERATOR_ERROR"
+        // ErrEvent indicates an error related to event handling.
+        ErrEvent ErrorType = "EVENT_ERROR"
+        // ErrJSON indicates an error parsing or unmarshaling JSON.
+        ErrJSON ErrorType = "JSON_ERROR"
+)
+
+// RuleEngineError is the base error type for all errors in the rule engine.
+// It categorizes errors by type and optionally wraps underlying errors.
+type RuleEngineError struct {
+        Type ErrorType // The category of error
+        Msg  string    // Human-readable error message
+        Err  error     // Wrapped underlying error (optional)
+}
+
+// Error implements the error interface
+func (e *RuleEngineError) Error() string <span class="cov8" title="1">{
+        if e.Err != nil </span><span class="cov8" title="1">{
+                return fmt.Sprintf("[%s] %s: %v", e.Type, e.Msg, e.Err)
+        }</span>
+        <span class="cov8" title="1">return fmt.Sprintf("[%s] %s", e.Type, e.Msg)</span>
+}
+
+// Unwrap returns the wrapped error
+func (e *RuleEngineError) Unwrap() error <span class="cov8" title="1">{
+        return e.Err
+}</span>
+
+// AlmanacError represents an error that occurred while accessing or managing facts in the almanac.
+type AlmanacError struct {
+        Payload string // Context about what was being accessed
+        Err     error  // Underlying error
+}
+
+// FactError represents an error that occurred while computing or accessing a fact value.
+type FactError struct {
+        Fact Fact  // The fact that caused the error
+        Err  error // Underlying error
+}
+
+// OperatorError represents an error related to a specific operator evaluation.
+type OperatorError struct {
+        Operator     OperatorType // The operator that failed
+        Value        interface{}  // The fact value being compared
+        CompareValue interface{}  // The expected value
+        Err          error        // Underlying error
+}
+
+// RuleError represents an error related to a specific rule evaluation or definition.
+type RuleError struct {
+        Rule Rule  // The rule that caused the error
+        Err  error // Underlying error
+}
+
+// ConditionError represents an error that occurred while evaluating a condition.
+type ConditionError struct {
+        Condition Condition // The condition that failed
+        Err       error     // Underlying error
+}
+
+// Error methods to convert to RuleEngineError
+func (e *AlmanacError) Error() string <span class="cov8" title="1">{
+        return (&amp;RuleEngineError{
+                Type: ErrAlmanac,
+                Msg: fmt.Sprintf(
+                        "almanac=%v",
+                        e.Payload,
+                ),
+                Err: e.Err,
+        }).Error()
+}</span>
+
+// Unwrap returns the wrapped error
+func (e *AlmanacError) Unwrap() error <span class="cov8" title="1">{
+        return e.Err
+}</span>
+
+// Error methods to convert to RuleEngineError
+func (e *OperatorError) Error() string <span class="cov8" title="1">{
+        return (&amp;RuleEngineError{
+                Type: ErrOperator,
+                Msg: fmt.Sprintf(
+                        "operator=%s value=%v compareValue=%v",
+                        e.Operator,
+                        e.Value,
+                        e.CompareValue,
+                ),
+                Err: e.Err,
+        }).Error()
+}</span>
+
+// Unwrap returns the wrapped error
+func (e *OperatorError) Unwrap() error <span class="cov8" title="1">{
+        return e.Err
+}</span>
+
+// Error methods to convert to RuleEngineError
+func (e *RuleError) Error() string <span class="cov8" title="1">{
+        return (&amp;RuleEngineError{
+                Type: ErrRule,
+                Msg: fmt.Sprintf(
+                        "rule=%v",
+                        e.Rule,
+                ),
+                Err: e.Err,
+        }).Error()
+}</span>
+
+// Unwrap returns the wrapped error
+func (e *RuleError) Unwrap() error <span class="cov8" title="1">{
+        return e.Err
+}</span>
+
+// Error methods to convert to RuleEngineError
+func (e *ConditionError) Error() string <span class="cov8" title="1">{
+        return (&amp;RuleEngineError{
+                Type: ErrCondition,
+                Msg: fmt.Sprintf(
+                        "condition=%v",
+                        e.Condition,
+                ),
+                Err: e.Err,
+        }).Error()
+}</span>
+
+// Unwrap returns the wrapped error
+func (e *ConditionError) Unwrap() error <span class="cov8" title="1">{
+        return e.Err
+}</span>
+
+// Error methods to convert to RuleEngineError
+func (e *FactError) Error() string <span class="cov8" title="1">{
+        return (&amp;RuleEngineError{
+                Type: ErrFact,
+                Msg: fmt.Sprintf(
+                        "fact=%v",
+                        e.Fact,
+                ),
+                Err: e.Err,
+        }).Error()
+}</span>
+
+// Unwrap returns the wrapped error
+func (e *FactError) Unwrap() error <span class="cov8" title="1">{
+        return e.Err
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package gorulesengine
+
+const (
+        // EventSuccess represents a success event type for rules that matched.
+        EventSuccess = "success"
+        // EventFailure represents a failure event type for rules that did not match.
+        EventFailure = "failure"
+)
+
+// Event represents an event triggered by a rule when its conditions are met.
+// Events can carry additional parameters in the Params map.
+type Event struct {
+        Type   string                 `json:"type"`             // The event type identifier
+        Params map[string]interface{} `json:"params,omitempty"` // Optional parameters passed with the event
+}
+
+// EventHandler is a callback function invoked when an event occurs.
+// It receives the event, the current almanac state, and the rule result.
+// Handlers can return an error to stop further processing.
+type EventHandler func(event Event, almanac *Almanac, ruleResult RuleResult) error
+
+// EventHandlers manages a registry of event handlers organized by event type.
+// It allows multiple handlers to be registered for the same event type.
+type EventHandlers struct {
+        handlers map[string][]EventHandler
+}
+
+// RegisterHandler registers an event handler for a specific event type.
+// Multiple handlers can be registered for the same event type and will be invoked in order.
+func (e *EventHandlers) RegisterHandler(eventType string, handler EventHandler) <span class="cov8" title="1">{
+        if e.handlers == nil </span><span class="cov8" title="1">{
+                e.handlers = make(map[string][]EventHandler)
+        }</span>
+        <span class="cov8" title="1">e.handlers[eventType] = append(e.handlers[eventType], handler)</span>
+}
+
+// GetHandlers retrieves all handlers registered for a specific event type.
+// Returns nil if no handlers are registered for the given event type.
+func (e *EventHandlers) GetHandlers(eventType string) []EventHandler <span class="cov8" title="1">{
+        if e.handlers == nil </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+        <span class="cov8" title="1">return e.handlers[eventType]</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package gorulesengine
+
+import (
+        "crypto/md5"
+        "encoding/hex"
+        "reflect"
+)
+
+// DynamicFact identifies a fact that computes its value dynamically using a function.
+const DynamicFact = "__dynamic_fact__"
+
+// ConstantFact identifies a fact with a static, pre-defined value.
+const ConstantFact = "__constant_fact__"
+
+// FactOptionKeyCache is the key for the caching option in fact options.
+const FactOptionKeyCache = "cache"
+
+// FactOptionKeyPriority is the key for the priority option in fact options.
+const FactOptionKeyPriority = "priority"
+
+// FactID is a unique identifier for a fact.
+type FactID string
+
+// Fact represents a piece of data (fact) that can be used in rule conditions.
+// Facts can be static values or dynamic functions that compute values on demand.
+//
+// Example:
+//
+//        // Static fact
+//        fact := gorulesengine.NewFact("age", 25)
+//
+//        // Dynamic fact
+//        fact := gorulesengine.NewFact("temperature", func(params map[string]interface{}) interface{} {
+//            return fetchTemperatureFromAPI()
+//        })
+type Fact struct {
+        id            FactID
+        valueOrMethod interface{}
+        factType      string
+        options       map[string]interface{}
+}
+
+// FactOption defines a functional option for configuring facts.
+type FactOption func(*Fact)
+
+// WithCache enables caching for dynamic facts.
+// When enabled, the fact's value will be computed once and reused.
+func WithCache() FactOption <span class="cov8" title="1">{
+        return func(f *Fact) </span><span class="cov8" title="1">{
+                f.options[FactOptionKeyCache] = true
+        }</span>
+}
+
+// WithoutCache disables caching for facts.
+// When disabled, dynamic facts will be re-evaluated on each access.
+func WithoutCache() FactOption <span class="cov8" title="1">{
+        return func(f *Fact) </span><span class="cov8" title="1">{
+                f.options[FactOptionKeyCache] = false
+        }</span>
+}
+
+// WithPriority sets the evaluation priority of the fact.
+// Higher priority facts may be evaluated before lower priority facts.
+func WithPriority(priority int) FactOption <span class="cov8" title="1">{
+        return func(f *Fact) </span><span class="cov8" title="1">{
+                f.options[FactOptionKeyPriority] = priority
+        }</span>
+}
+
+// NewFact creates a new fact with the given ID and value or computation function.
+// If valueOrMethod is a function, the fact is dynamic and will compute its value on demand.
+// Otherwise, the fact is static with a constant value.
+//
+// Options can be provided to customize caching and priority behavior.
+//
+// Example:
+//
+//        // Static fact
+//        fact := gorulesengine.NewFact("age", 25)
+//
+//        // Dynamic fact with custom options
+//        fact := gorulesengine.NewFact("temperature",
+//            func(params map[string]interface{}) interface{} {
+//                return fetchTemperature()
+//            },
+//            gorulesengine.WithCache(),
+//            gorulesengine.WithPriority(10),
+//        )
+func NewFact(id FactID, valueOrMethod interface{}, opts ...FactOption) *Fact <span class="cov8" title="1">{
+        fact := Fact{
+                id:            id,
+                valueOrMethod: valueOrMethod,
+                options:       map[string]interface{}{},
+                factType: func() string </span><span class="cov8" title="1">{
+                        // Use reflect to detect any function type
+                        if reflect.TypeOf(valueOrMethod).Kind() == reflect.Func </span><span class="cov8" title="1">{
+                                return DynamicFact
+                        }</span>
+                        <span class="cov8" title="1">return ConstantFact</span>
+                }(),
+        }
+
+        // Default priority is 0
+        <span class="cov8" title="1">WithPriority(0)(&amp;fact)
+
+        if fact.factType == DynamicFact </span><span class="cov8" title="1">{
+                WithCache()(&amp;fact)
+        }</span>
+
+        // Apply functional options
+        <span class="cov8" title="1">for _, opt := range opts </span><span class="cov8" title="1">{
+                opt(&amp;fact)
+        }</span>
+
+        <span class="cov8" title="1">return &amp;fact</span>
+}
+
+// ID returns the unique identifier of the fact.
+func (f *Fact) ID() FactID <span class="cov8" title="1">{
+        return f.id
+}</span>
+
+// ValueOrMethod returns the fact's value (for static facts) or computation function (for dynamic facts).
+func (f *Fact) ValueOrMethod() interface{} <span class="cov8" title="1">{
+        return f.valueOrMethod
+}</span>
+
+// FactType returns the type of the fact: DYNAMIC_FACT or CONSTANT_FACT.
+func (f *Fact) FactType() string <span class="cov8" title="1">{
+        return f.factType
+}</span>
+
+// IsDynamic returns true if the fact computes its value dynamically using a function.
+func (f *Fact) IsDynamic() bool <span class="cov8" title="1">{
+        return f.factType == DynamicFact
+}</span>
+
+// GetOption returns the value of a specific option and whether it exists.
+func (f *Fact) GetOption(key string) (interface{}, bool) <span class="cov8" title="1">{
+        val, exists := f.options[key]
+        return val, exists
+}</span>
+
+// HasOption checks if an option exists
+func (f *Fact) HasOption(key string) bool <span class="cov8" title="1">{
+        _, exists := f.options[key]
+        return exists
+}</span>
+
+// GetCacheKey generates a unique cache key for the fact if it's cached
+func (f *Fact) GetCacheKey() (string, error) <span class="cov8" title="1">{
+        if f.options[FactOptionKeyCache] == true </span><span class="cov8" title="1">{
+                // Use the fact ID as cache key for both static and dynamic facts
+                // This simplifies the caching mechanism
+                return f.hashFromID()
+        }</span>
+        <span class="cov8" title="1">return "", nil</span>
+}
+
+// Calculate executes the dynamic fact method or returns the constant fact value
+func (f *Fact) Calculate(params map[string]interface{}) interface{} <span class="cov8" title="1">{
+        method := reflect.ValueOf(f.valueOrMethod)
+        methodType := method.Type()
+
+        // If it's not a function, return the value directly
+        methodKind := methodType.Kind()
+        if methodKind != reflect.Func </span><span class="cov8" title="1">{
+                return f.valueOrMethod
+        }</span>
+
+        <span class="cov8" title="1">var results []reflect.Value
+
+        // Handle different method signatures
+        switch methodType.NumIn() </span>{
+        case 0:<span class="cov8" title="1">
+                // Method with no parameters
+                results = method.Call([]reflect.Value{})</span>
+        case 1:<span class="cov8" title="1">
+                // Method with one parameter (params)
+                results = method.Call([]reflect.Value{reflect.ValueOf(params)})</span>
+        default:<span class="cov8" title="1">
+                // Unsupported signature
+                return nil</span>
+        }
+
+        <span class="cov8" title="1">return results[0].Interface()</span>
+}
+
+// hashFromID generates a unique MD5 hash based on the fact ID
+func (f *Fact) hashFromID() (string, error) <span class="cov8" title="1">{
+        // Use the fact ID to generate the cache key
+        // This is simpler and works for both static and dynamic facts
+        bytes := []byte(f.id)
+        sum := md5.Sum(bytes)
+        return hex.EncodeToString(sum[:]), nil
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package gorulesengine
+
+import (
+        "fmt"
+        "reflect"
+        "strings"
+)
+
+// Operator defines the interface for all comparison operators.
+// Custom operators can be registered by implementing this interface.
+type Operator interface {
+        // Evaluate compares a fact value against a condition value and returns true if the comparison succeeds.
+        Evaluate(factValue interface{}, compareValue interface{}) (bool, error)
+}
+
+// EqualOperator checks if two values are equal.
+type EqualOperator struct{}
+
+// NotEqualOperator checks if two values are not equal.
+type NotEqualOperator struct{}
+
+// LessThanOperator checks if factValue &lt; compareValue.
+type LessThanOperator struct{}
+
+// LessThanInclusiveOperator checks if factValue &lt;= compareValue.
+type LessThanInclusiveOperator struct{}
+
+// GreaterThanOperator checks if factValue &gt; compareValue.
+type GreaterThanOperator struct{}
+
+// GreaterThanInclusiveOperator checks if factValue &gt;= compareValue.
+type GreaterThanInclusiveOperator struct{}
+
+// InOperator checks if factValue is contained in compareValue (array).
+type InOperator struct{}
+
+// NotInOperator checks if factValue is not contained in compareValue (array).
+type NotInOperator struct{}
+
+// ContainsOperator checks if factValue contains compareValue (for strings and arrays).
+type ContainsOperator struct{}
+
+// NotContainsOperator checks if factValue does not contain compareValue.
+type NotContainsOperator struct{}
+
+var operatorRegistry map[OperatorType]Operator
+
+func init() <span class="cov8" title="1">{
+        operatorRegistry = map[OperatorType]Operator{
+                Equal:                &amp;EqualOperator{},
+                NotEqual:             &amp;NotEqualOperator{},
+                LessThan:             &amp;LessThanOperator{},
+                LessThanInclusive:    &amp;LessThanInclusiveOperator{},
+                GreaterThan:          &amp;GreaterThanOperator{},
+                GreaterThanInclusive: &amp;GreaterThanInclusiveOperator{},
+                In:                   &amp;InOperator{},
+                NotIn:                &amp;NotInOperator{},
+                Contains:             &amp;ContainsOperator{},
+                NotContains:          &amp;NotContainsOperator{},
+        }
+}</span>
+
+// GetOperator retrieves an operator from the registry by its type.
+// Returns an error if the operator is not registered.
+func GetOperator(opType OperatorType) (Operator, error) <span class="cov8" title="1">{
+        op, exists := operatorRegistry[opType]
+        if !exists </span><span class="cov8" title="1">{
+                return nil, &amp;OperatorError{
+                        Operator: opType,
+                        Err:      fmt.Errorf("operator not registered"),
+                }
+        }</span>
+        <span class="cov8" title="1">return op, nil</span>
+}
+
+// RegisterOperator registers a custom operator in the global operator registry.
+// This allows you to extend the engine with custom comparison logic.
+//
+// Example:
+//
+//        type StartsWithOperator struct{}
+//        func (o *StartsWithOperator) Evaluate(factValue, compareValue interface{}) (bool, error) {
+//            str, ok1 := factValue.(string)
+//            prefix, ok2 := compareValue.(string)
+//            if !ok1 || !ok2 {
+//                return false, fmt.Errorf("both values must be strings")
+//            }
+//            return strings.HasPrefix(str, prefix), nil
+//        }
+//        gorulesengine.RegisterOperator("starts_with", &amp;StartsWithOperator{})
+func RegisterOperator(opType OperatorType, operator Operator) <span class="cov8" title="1">{
+        operatorRegistry[opType] = operator
+}</span>
+
+// toFloat64 converts any numeric type to float64
+func toFloat64(value interface{}) (float64, bool) <span class="cov8" title="1">{
+        switch v := value.(type) </span>{
+        case float64:<span class="cov8" title="1">
+                return v, true</span>
+        case float32:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case int:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case int64:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case int32:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case int16:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case int8:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case uint:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case uint64:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case uint32:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case uint16:<span class="cov8" title="1">
+                return float64(v), true</span>
+        case uint8:<span class="cov8" title="1">
+                return float64(v), true</span>
+        default:<span class="cov8" title="1">
+                // Fallback with reflection for exotic types
+                return 0, false</span>
+        }
+}
+
+// Evaluate checks if two values are equal using deep equality comparison.
+// Returns false if the values have different types or if either value is nil.
+func (o *EqualOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        if factValue == nil || compareValue == nil </span><span class="cov8" title="1">{
+                return false, &amp;OperatorError{
+                        Operator:     Equal,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          fmt.Errorf("cannot compare nil values"),
+                }
+        }</span>
+
+        <span class="cov8" title="1">if reflect.TypeOf(factValue) != reflect.TypeOf(compareValue) </span><span class="cov8" title="1">{
+                return false, nil
+        }</span>
+
+        <span class="cov8" title="1">return reflect.DeepEqual(factValue, compareValue), nil</span>
+}
+
+// Evaluate checks if two values are not equal.
+// Returns the inverse of the EqualOperator result.
+func (o *NotEqualOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        equal, err := (&amp;EqualOperator{}).Evaluate(factValue, compareValue)
+        if err != nil </span><span class="cov8" title="1">{
+                return false, &amp;OperatorError{
+                        Operator:     NotEqual,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          err,
+                }
+        }</span>
+        <span class="cov8" title="1">return !equal, nil</span>
+}
+
+// Evaluate checks if factValue is less than compareValue.
+// Both values must be numeric types.
+func (o *LessThanOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        fv, ok1 := toFloat64(factValue)
+        cv, ok2 := toFloat64(compareValue)
+        if !ok1 || !ok2 </span><span class="cov8" title="1">{
+                return false, &amp;OperatorError{
+                        Operator:     LessThan,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          fmt.Errorf("less_than operator requires numeric values"),
+                }
+        }</span>
+        <span class="cov8" title="1">return fv &lt; cv, nil</span>
+}
+
+// Evaluate checks if factValue is less than or equal to compareValue.
+// Both values must be numeric types.
+func (o *LessThanInclusiveOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        fv, ok1 := toFloat64(factValue)
+        cv, ok2 := toFloat64(compareValue)
+        if !ok1 || !ok2 </span><span class="cov8" title="1">{
+                return false, &amp;OperatorError{
+                        Operator:     LessThanInclusive,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          fmt.Errorf("less_than_inclusive operator requires numeric values"),
+                }
+        }</span>
+        <span class="cov8" title="1">return fv &lt;= cv, nil</span>
+}
+
+// Evaluate checks if factValue is greater than compareValue.
+// Both values must be numeric types.
+func (o *GreaterThanOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        fv, ok1 := toFloat64(factValue)
+        cv, ok2 := toFloat64(compareValue)
+        if !ok1 || !ok2 </span><span class="cov8" title="1">{
+                return false, &amp;OperatorError{
+                        Operator:     GreaterThan,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          fmt.Errorf("greater_than operator requires numeric values"),
+                }
+        }</span>
+        <span class="cov8" title="1">return fv &gt; cv, nil</span>
+}
+
+// Evaluate checks if factValue is greater than or equal to compareValue.
+// Both values must be numeric types.
+func (o *GreaterThanInclusiveOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        fv, ok1 := toFloat64(factValue)
+        cv, ok2 := toFloat64(compareValue)
+        if !ok1 || !ok2 </span><span class="cov8" title="1">{
+                return false, &amp;OperatorError{
+                        Operator:     GreaterThanInclusive,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          fmt.Errorf("greater_than_inclusive operator requires numeric values"),
+                }
+        }</span>
+        <span class="cov8" title="1">return fv &gt;= cv, nil</span>
+}
+
+// Evaluate checks if factValue is contained in the compareValue array.
+// compareValue must be a slice or array.
+func (o *InOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        // Use reflection to handle any slice type
+        rv := reflect.ValueOf(compareValue)
+
+        // Verify that it's a slice or an array
+        if rv.Kind() != reflect.Slice &amp;&amp; rv.Kind() != reflect.Array </span><span class="cov8" title="1">{
+                return false, &amp;OperatorError{
+                        Operator:     In,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          fmt.Errorf("in operator requires an array or slice as compareValue"),
+                }
+        }</span>
+
+        // Iterate over slice elements
+        <span class="cov8" title="1">for i := 0; i &lt; rv.Len(); i++ </span><span class="cov8" title="1">{
+                elem := rv.Index(i).Interface()
+                equal, err := (&amp;EqualOperator{}).Evaluate(factValue, elem)
+                if err != nil </span><span class="cov8" title="1">{
+                        return false, err
+                }</span>
+                <span class="cov8" title="1">if equal </span><span class="cov8" title="1">{
+                        return true, nil
+                }</span>
+        }
+
+        <span class="cov8" title="1">return false, nil</span>
+}
+
+// Evaluate checks if factValue is not contained in the compareValue array.
+// Returns the inverse of the InOperator result.
+func (o *NotInOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        in, err := (&amp;InOperator{}).Evaluate(factValue, compareValue)
+        if err != nil </span><span class="cov8" title="1">{
+                return false, &amp;OperatorError{
+                        Operator:     NotIn,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          err,
+                }
+        }</span>
+        <span class="cov8" title="1">return !in, nil</span>
+}
+
+// Evaluate checks if factValue contains compareValue.
+// For strings, checks substring containment. For arrays/slices, checks element presence.
+func (o *ContainsOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        // Use reflection to handle any slice or string type
+        rv := reflect.ValueOf(factValue)
+
+        switch rv.Kind() </span>{
+        case reflect.Slice, reflect.Array:<span class="cov8" title="1">
+                // Iterate over slice elements
+                for i := 0; i &lt; rv.Len(); i++ </span><span class="cov8" title="1">{
+                        elem := rv.Index(i).Interface()
+                        equal, err := (&amp;EqualOperator{}).Evaluate(elem, compareValue)
+                        if err != nil </span><span class="cov8" title="1">{
+                                return false, &amp;OperatorError{
+                                        Operator:     Contains,
+                                        Value:        factValue,
+                                        CompareValue: compareValue,
+                                        Err:          fmt.Errorf("error during contains evaluation: %v", err),
+                                }
+                        }</span>
+                        <span class="cov8" title="1">if equal </span><span class="cov8" title="1">{
+                                return true, nil
+                        }</span>
+                }
+                <span class="cov8" title="1">return false, nil</span>
+        case reflect.String:<span class="cov8" title="1">
+                cv, ok := compareValue.(string)
+                if !ok </span><span class="cov8" title="1">{
+                        return false, &amp;OperatorError{
+                                Operator:     Contains,
+                                Value:        factValue,
+                                CompareValue: compareValue,
+                                Err:          fmt.Errorf("contains operator requires string compareValue when factValue is a string"),
+                        }
+                }</span>
+                <span class="cov8" title="1">return strings.Contains(rv.String(), cv), nil</span>
+        default:<span class="cov8" title="1">
+                return false, &amp;OperatorError{
+                        Operator:     Contains,
+                        Value:        factValue,
+                        CompareValue: compareValue,
+                        Err:          fmt.Errorf("contains operator requires array, slice, or string as factValue"),
+                }</span>
+        }
+}
+
+// Evaluate checks if factValue does not contain compareValue.
+// Returns the inverse of the ContainsOperator result.
+func (o *NotContainsOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) <span class="cov8" title="1">{
+        contains, err := (&amp;ContainsOperator{}).Evaluate(factValue, compareValue)
+        if err != nil </span><span class="cov8" title="1">{
+                return false, err
+        }</span>
+        <span class="cov8" title="1">return !contains, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

@@ -14,7 +14,7 @@ A powerful and flexible business rules engine for Go, inspired by [json-rules-en
 - 🎪 **Event System** - Custom callbacks and global handlers to react to results
 - 💾 **Dynamic Facts** - Compute values on-the-fly with callbacks
 - 🧮 **JSONPath Support** - Access nested data with `$.path.to.value`
-- ⚡ **Rule Priorities** - Control evaluation order with priorities
+- ⚡ **Rule Priorities** - Control evaluation order with configurable priority sorting (ASC/DESC)
 - 🔒 **Thread-safe** - Protected by mutexes for concurrent usage
 - ✅ **100% Test Coverage** - Robust and thoroughly tested code
 
@@ -82,6 +82,59 @@ func main() {
             fmt.Printf("✅ Rule '%s' triggered!\n", result.Rule.Name)
             fmt.Printf("   Event: %s\n", result.Event.Type)
         }
+    }
+}
+```
+
+### Engine Configuration with Priority Sorting
+
+```go
+package main
+
+import (
+    "fmt"
+    gorulesengine "github.com/deadelus/go-rules-engine/src"
+)
+
+func main() {
+    // Create engine with ascending priority (lower priority first)
+    sortOrder := gorulesengine.SortRuleASC
+    engine := gorulesengine.NewEngine(gorulesengine.WithPrioritySorting(&sortOrder))
+
+    // Add rules with different priorities
+    highPriorityRule := &gorulesengine.Rule{
+        Name:     "high-priority",
+        Priority: 100,
+        Conditions: gorulesengine.ConditionSet{
+            All: []gorulesengine.ConditionNode{
+                {Condition: &gorulesengine.Condition{Fact: "test", Operator: "equal", Value: true}},
+            },
+        },
+        Event: gorulesengine.Event{Type: "high-event"},
+    }
+
+    lowPriorityRule := &gorulesengine.Rule{
+        Name:     "low-priority",
+        Priority: 10,
+        Conditions: gorulesengine.ConditionSet{
+            All: []gorulesengine.ConditionNode{
+                {Condition: &gorulesengine.Condition{Fact: "test", Operator: "equal", Value: true}},
+            },
+        },
+        Event: gorulesengine.Event{Type: "low-event"},
+    }
+
+    engine.AddRule(highPriorityRule)
+    engine.AddRule(lowPriorityRule)
+
+    almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+    almanac.AddFact("test", true)
+
+    results, _ := engine.Run(almanac)
+    
+    // With ASC sorting: low-priority (10) is evaluated before high-priority (100)
+    for _, result := range results {
+        fmt.Printf("Rule '%s' (priority %d) evaluated\n", result.Rule.Name, result.Rule.Priority)
     }
 }
 ```
@@ -233,10 +286,22 @@ The rules engine is composed of several key components:
 #### 1. **Engine** - The main engine
 
 ```go
+// Default engine (with descending priority sorting)
 engine := gorulesengine.NewEngine()
-engine.AddRule(rule)
-results, err := engine.Run(almanac)
+
+// Engine with custom sorting
+sortOrder := gorulesengine.SortRuleASC
+engine := gorulesengine.NewEngine(gorulesengine.WithPrioritySorting(&sortOrder))
+
+// Engine without priority sorting (insertion order)
+engine := gorulesengine.NewEngine(gorulesengine.WithoutPrioritySorting())
 ```
+
+**Configuration Options:**
+- `WithPrioritySorting(*SortRule)` - Enable priority sorting (default: DESC)
+  - `SortRuleASC` - Sort by ascending priority (lower first)
+  - `SortRuleDESC` - Sort by descending priority (higher first, default)
+- `WithoutPrioritySorting()` - Disable priority sorting (evaluate rules in insertion order)
 
 **Methods:**
 - `AddRule(rule *Rule)` - Add a rule to the engine
@@ -276,9 +341,9 @@ condition := &gorulesengine.Condition{
 - `equal` - Equality
 - `not_equal` - Not equal to
 - `greater_than` - Greater than
-- `greater_than_or_equal` - Greater than or equal to
+- `greater_than_inclusive` - Greater than or equal to
 - `less_than` - Less than
-- `less_than_or_equal` - Less than or equal to
+- `less_than_inclusive` - Less than or equal to
 - `in` - In the list
 - `not_in` - Not in the list
 - `contains` - Contains (for strings and arrays)
@@ -378,13 +443,13 @@ rule := &gorulesengine.Rule{
 
 ```go
 // Handler for all successful rules
-engine.On("success", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
+engine.OnSucess(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
     fmt.Printf("✅ Successful rule: %s\n", ruleResult.Rule.Name)
     return nil
 })
 
 // Handler for all failed rules
-engine.On("failure", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
+engine.OnFailure(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
     fmt.Printf("❌ Failed rule: %s\n", ruleResult.Rule.Name)
     return nil
 })
@@ -394,7 +459,7 @@ engine.On("failure", func(event gorulesengine.Event, almanac *gorulesengine.Alma
 
 ```go
 // Specific handler for an event type
-engine.OnEvent("user-approved", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
+engine.On("user-approved", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
     userId := event.Params["userId"]
     fmt.Printf("User %v approved!\n", userId)
     return nil
@@ -499,11 +564,12 @@ go fmt ./src/...
 - [x] Phase 5: Engine with event system
 - [x] Phase 6: JSON support and deserialization
 - [x] Phase 7: Advanced features (callbacks, handlers, JSONPath)
+- [x] Phase 8: Configurable priority sorting (ASC/DESC/disabled)
 - [x] Complete tests with 100% coverage
 
 ### 🚧 Upcoming Phases
 
-#### Phase 8: Ergonomic API and builders
+#### Phase 9: Ergonomic API and builders
 
 **Fluent builders for creating rules**
 ```go
@@ -527,7 +593,7 @@ condition := All(
 )
 ```
 
-#### Phase 9: Documentation and examples
+#### Phase 10: Documentation and examples
 
 - [x] Complete GoDoc documentation
 - [x] Examples in `examples/`
@@ -537,18 +603,18 @@ condition := All(
   - [x] `examples/advanced/` - Advanced features
   - [x] `examples/custom-operator/` - Custom operators
 
-#### Phase 10: New operators
+#### Phase 11: New operators
 
 - [ ] `regex` - Check if value matches a regular expression
 
-#### Phase 11: Performance and optimization
+#### Phase 12: Performance and optimization
 
 - [ ] Complete benchmarks
 - [ ] Condition results caching
 - [ ] Parallel evaluation of independent rules
 - [ ] Memory and CPU profiling
 
-#### Phase 12: Advanced features
+#### Phase 13: Advanced features
 
 - [ ] Sort facts by `priority`
 - [ ] Async rules support
