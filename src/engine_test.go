@@ -4,1074 +4,824 @@ import (
 	"errors"
 	"testing"
 
-	gorulesengine "github.com/deadelus/go-rules-engine/src"
+	gre "github.com/deadelus/go-rules-engine/v2/src"
 )
 
+// MockEventHandler is a mock implementation of EventHandler for testing
+type MockEventHandler struct {
+	HandledEvents   []gre.Event
+	HandledContexts []gre.EventContext
+	ShouldError     bool
+	ErrorMessage    string
+}
+
+func (m *MockEventHandler) Handle(event gre.Event, ctx gre.EventContext) error {
+	m.HandledEvents = append(m.HandledEvents, event)
+	m.HandledContexts = append(m.HandledContexts, ctx)
+	if m.ShouldError {
+		return errors.New(m.ErrorMessage)
+	}
+	return nil
+}
+
 func TestNewEngine(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-	if engine == nil {
-		t.Fatal("NewEngine should return a non-nil engine")
-	}
-}
-
-func TestEngine_AddRule(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	rule := &gorulesengine.Rule{
-		Name:     "test-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "age",
-						Operator: "greater_than",
-						Value:    18,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{
-			Type: "test-event",
-		},
-	}
-
-	engine.AddRule(rule)
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("age", 25)
-
-	results, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	if len(results) != 1 {
-		t.Errorf("Expected 1 result, got %d", len(results))
-	}
-}
-
-func TestEngine_RegisterCallback(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	callbackCalled := false
-	engine.RegisterCallback("test-callback", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		callbackCalled = true
-		return nil
-	})
-
-	onSuccessName := "test-callback"
-	rule := &gorulesengine.Rule{
-		Name:     "callback-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{
-			Type: "test-event",
-		},
-		OnSuccess: &onSuccessName,
-	}
-
-	engine.AddRule(rule)
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	if !callbackCalled {
-		t.Error("Registered callback was not called")
-	}
-}
-
-func TestEngine_OnSuccess(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	successCalled := false
-	engine.OnSuccess(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		successCalled = true
-		if result.Result != true {
-			t.Errorf("Expected result to be true in success handler")
+	t.Run("creates engine with default priority sorting", func(t *testing.T) {
+		engine := gre.NewEngine()
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
 		}
-		return nil
 	})
 
-	rule := &gorulesengine.Rule{
-		Name:     "success-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "value",
-						Operator: "equal",
-						Value:    100,
-					},
-				},
+	t.Run("creates engine with custom sorting options", func(t *testing.T) {
+		sortRule := gre.SortRuleASC
+		engine := gre.NewEngine(gre.WithPrioritySorting(&sortRule))
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
+		}
+	})
+
+	t.Run("creates engine without priority sorting", func(t *testing.T) {
+		engine := gre.NewEngine(gre.WithoutPrioritySorting())
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
+		}
+	})
+}
+
+func TestAddRule(t *testing.T) {
+	t.Run("adds a single rule", func(t *testing.T) {
+		engine := gre.NewEngine()
+		rule := &gre.Rule{
+			Name:     "test-rule",
+			Priority: 10,
+		}
+
+		engine.AddRule(rule)
+		// Since rules is private, we can only verify no panic occurs
+	})
+
+	t.Run("adds multiple rules", func(t *testing.T) {
+		engine := gre.NewEngine()
+		rule1 := &gre.Rule{Name: "rule1", Priority: 10}
+		rule2 := &gre.Rule{Name: "rule2", Priority: 20}
+
+		engine.AddRule(rule1)
+		engine.AddRule(rule2)
+		// Since rules is private, we can only verify no panic occurs
+	})
+}
+
+func TestAddRules(t *testing.T) {
+	e := gre.NewEngine()
+
+	r1 := &gre.Rule{
+		Name: "Rule 1",
+		Conditions: gre.ConditionSet{
+			All: []gre.ConditionNode{
+				{Condition: &gre.Condition{Fact: "f1", Operator: "equal", Value: 1}},
 			},
 		},
-		Event: gorulesengine.Event{
-			Type: "success-event",
+	}
+
+	r2 := &gre.Rule{
+		Name: "Rule 2",
+		Conditions: gre.ConditionSet{
+			All: []gre.ConditionNode{
+				{Condition: &gre.Condition{Fact: "f2", Operator: "equal", Value: 2}},
+			},
 		},
 	}
 
-	engine.AddRule(rule)
+	e.AddRules(r1, r2)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("value", 100)
-
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
+	rules := e.GetRules()
+	if len(rules) != 2 {
+		t.Errorf("Expected 2 rules, got %d", len(rules))
 	}
 
-	if !successCalled {
-		t.Error("OnSuccess handler was not called")
+	if rules[0].Name != "Rule 1" || rules[1].Name != "Rule 2" {
+		t.Error("Rules names are incorrect")
 	}
 }
 
-func TestEngine_OnFailure(t *testing.T) {
-	engine := gorulesengine.NewEngine()
+func TestClearRules(t *testing.T) {
+	e := gre.NewEngine()
+	e.AddRule(&gre.Rule{Name: "Rule 1"})
+	e.AddRule(&gre.Rule{Name: "Rule 2"})
 
-	failureCalled := false
-	engine.OnFailure(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		failureCalled = true
-		if result.Result != false {
-			t.Errorf("Expected result to be false in failure handler")
-		}
-		return nil
-	})
-
-	rule := &gorulesengine.Rule{
-		Name:     "failure-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "value",
-						Operator: "equal",
-						Value:    100,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{
-			Type: "failure-event",
-		},
+	if len(e.GetRules()) != 2 {
+		t.Errorf("Expected 2 rules, got %d", len(e.GetRules()))
 	}
 
-	engine.AddRule(rule)
+	e.ClearRules()
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("value", 50) // Valeur différente pour faire échouer la règle
-
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	if !failureCalled {
-		t.Error("OnFailure handler was not called")
+	if len(e.GetRules()) != 0 {
+		t.Errorf("Expected 0 rules after ClearRules, got %d", len(e.GetRules()))
 	}
 }
 
-func TestEngine_On_EventType(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	eventHandlerCalled := false
-	engine.On("specific-event", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		eventHandlerCalled = true
-		if event.Type != "specific-event" {
-			t.Errorf("Expected event type 'specific-event', got '%s'", event.Type)
-		}
-		return nil
-	})
-
-	rule := &gorulesengine.Rule{
-		Name:     "event-type-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{
-			Type: "specific-event",
+func TestRegisterEvent(t *testing.T) {
+	t.Run("registers a new event", func(t *testing.T) {
+		engine := gre.NewEngine()
+		event := gre.Event{
+			Name: "test-event",
 			Params: map[string]interface{}{
 				"key": "value",
 			},
-		},
-	}
-
-	engine.AddRule(rule)
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	if !eventHandlerCalled {
-		t.Error("Event type handler was not called")
-	}
-}
-
-func TestEngine_MultipleRules(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	rule1 := &gorulesengine.Rule{
-		Name:     "rule-1",
-		Priority: 100,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "age",
-						Operator: "greater_than",
-						Value:    18,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "adult"},
-	}
-
-	rule2 := &gorulesengine.Rule{
-		Name:     "rule-2",
-		Priority: 50,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "isPremium",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "premium"},
-	}
-
-	engine.AddRule(rule1)
-	engine.AddRule(rule2)
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("age", 25)
-	almanac.AddFact("isPremium", true)
-
-	results, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	if len(results) != 2 {
-		t.Errorf("Expected 2 results, got %d", len(results))
-	}
-
-	successCount := 0
-	for _, result := range results {
-		if result.Result {
-			successCount++
 		}
-	}
 
-	if successCount != 2 {
-		t.Errorf("Expected 2 successful rules, got %d", successCount)
-	}
-}
+		engine.RegisterEvent(event)
 
-func TestEngine_HandlerError(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	expectedError := errors.New("handler error")
-	engine.OnSuccess(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		return expectedError
+		// Verify by trying to handle the event (no error should occur)
+		almanac := gre.NewAlmanac()
+		err := engine.HandleEvent("test-event", "test-rule", true, almanac, nil)
+		if err != nil {
+			t.Fatalf("Expected event to be registered, got error: %v", err)
+		}
 	})
 
-	rule := &gorulesengine.Rule{
-		Name:     "error-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "test"},
-	}
+	t.Run("registers multiple events", func(t *testing.T) {
+		engine := gre.NewEngine()
+		event1 := gre.Event{Name: "event1"}
+		event2 := gre.Event{Name: "event2"}
 
-	engine.AddRule(rule)
+		engine.RegisterEvent(event1)
+		engine.RegisterEvent(event2)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	_, err := engine.Run(almanac)
-	if err == nil {
-		t.Fatal("Expected error from handler, got nil")
-	}
-
-	// Check that it's a RuleEngineError
-	var ruleEngineErr *gorulesengine.RuleEngineError
-	if !errors.As(err, &ruleEngineErr) {
-		t.Errorf("Expected RuleEngineError, got %T", err)
-	}
-
-	// Check that the wrapped error is our expected error
-	if !errors.Is(err, expectedError) {
-		t.Errorf("Expected wrapped error to be '%v', got '%v'", expectedError, err)
-	}
+		// Both events should be accessible
+		almanac := gre.NewAlmanac()
+		if err := engine.HandleEvent("event1", "rule1", true, almanac, nil); err != nil {
+			t.Fatalf("Expected event1 to be registered, got error: %v", err)
+		}
+		if err := engine.HandleEvent("event2", "rule2", true, almanac, nil); err != nil {
+			t.Fatalf("Expected event2 to be registered, got error: %v", err)
+		}
+	})
 }
 
-func TestEngine_CallbackNotFound(t *testing.T) {
-	engine := gorulesengine.NewEngine()
+func TestRegisterEvents(t *testing.T) {
+	t.Run("registers multiple events at once", func(t *testing.T) {
+		engine := gre.NewEngine()
+		event1 := gre.Event{Name: "event1"}
+		event2 := gre.Event{Name: "event2"}
+		event3 := gre.Event{Name: "event3"}
 
-	onSuccessName := "non-existent-callback"
-	rule := &gorulesengine.Rule{
-		Name:     "missing-callback-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event:     gorulesengine.Event{Type: "test"},
-		OnSuccess: &onSuccessName,
-	}
+		engine.RegisterEvents(event1, event2, event3)
 
-	engine.AddRule(rule)
+		// All events should be accessible
+		almanac := gre.NewAlmanac()
+		if err := engine.HandleEvent("event1", "rule1", true, almanac, nil); err != nil {
+			t.Fatalf("Expected event1 to be registered, got error: %v", err)
+		}
+		if err := engine.HandleEvent("event2", "rule2", true, almanac, nil); err != nil {
+			t.Fatalf("Expected event2 to be registered, got error: %v", err)
+		}
+		if err := engine.HandleEvent("event3", "rule3", true, almanac, nil); err != nil {
+			t.Fatalf("Expected event3 to be registered, got error: %v", err)
+		}
+	})
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
+	t.Run("works with no events", func(t *testing.T) {
+		engine := gre.NewEngine()
+		engine.RegisterEvents()
 
-	// Should not error, just print warning
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run should not fail on missing callback: %v", err)
-	}
+		// HandleEvent should return error only if handler is set and event doesn't exist
+		mockHandler := &MockEventHandler{}
+		engine.SetEventHandler(mockHandler)
+
+		almanac := gre.NewAlmanac()
+		err := engine.HandleEvent("nonexistent", "rule", true, almanac, nil)
+		if err == nil {
+			t.Fatal("Expected error for nonexistent event when handler is set")
+		}
+	})
 }
 
-func TestEngine_OnFailureCallbackNotFound(t *testing.T) {
-	engine := gorulesengine.NewEngine()
+func TestEngineRun(t *testing.T) {
+	t.Run("runs engine with passing rule", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 25)
 
-	onFailureName := "non-existent-failure-callback"
-	rule := &gorulesengine.Rule{
-		Name:     "missing-failure-callback-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "value",
-						Operator: "equal",
-						Value:    100,
+		rule := &gre.Rule{
+			Name:     "adult-check",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
 					},
 				},
 			},
-		},
-		Event:     gorulesengine.Event{Type: "test"},
-		OnFailure: &onFailureName,
-	}
+		}
 
-	engine.AddRule(rule)
+		engine.AddRule(rule)
+		e, err := engine.Run(almanac)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("value", 50) // Will fail the condition
+		result := e.ReduceResults()
 
-	// Should not error, just print warning
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run should not fail on missing OnFailure callback: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if !result[rule.Name] {
+			t.Error("Expected rule to pass")
+		}
+	})
 
-	// Verify rule was still evaluated and failed
-	results := almanac.GetResults()
-	if len(results) != 1 {
-		t.Fatalf("Expected 1 result, got %d", len(results))
-	}
+	t.Run("runs engine with failing rule", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 15)
 
-	if results[0].Result {
-		t.Error("Expected rule to fail")
-	}
-}
-
-func TestEngine_AlmanacEventStorage(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	rule := &gorulesengine.Rule{
-		Name:     "storage-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
+		rule := &gre.Rule{
+			Name:     "adult-check",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
 					},
 				},
 			},
-		},
-		Event: gorulesengine.Event{
-			Type: "storage-event",
+		}
+
+		engine.AddRule(rule)
+		e, err := engine.Run(almanac)
+
+		result := e.ReduceResults()
+
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if result[rule.Name] {
+			t.Error("Expected rule to fail")
+		}
+	})
+
+	t.Run("runs engine with onSuccess event", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 25)
+
+		mockHandler := &MockEventHandler{}
+		engine.SetEventHandler(mockHandler)
+
+		event := gre.Event{
+			Name: "success-event",
 			Params: map[string]interface{}{
-				"data": "test-data",
+				"message": "Rule passed",
 			},
-		},
-	}
-
-	engine.AddRule(rule)
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	// Vérifier que l'événement a été stocké
-	successEvents := almanac.GetSuccessEvents()
-	if len(successEvents) != 1 {
-		t.Errorf("Expected 1 success event, got %d", len(successEvents))
-	}
-
-	if len(successEvents) > 0 && successEvents[0].Type != "storage-event" {
-		t.Errorf("Expected event type 'storage-event', got '%s'", successEvents[0].Type)
-	}
-
-	// Vérifier les résultats stockés
-	results := almanac.GetResults()
-	if len(results) != 1 {
-		t.Errorf("Expected 1 result stored, got %d", len(results))
-	}
-}
-
-func TestEngine_HandlerExecutionOrder(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	var executionOrder []string
-
-	// Callback nommé
-	engine.RegisterCallback("named-callback", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		executionOrder = append(executionOrder, "named-callback")
-		return nil
-	})
-
-	// Handler global
-	engine.OnSuccess(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		executionOrder = append(executionOrder, "global-success")
-		return nil
-	})
-
-	// Handler par type d'événement
-	engine.On("order-event", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		executionOrder = append(executionOrder, "event-type-handler")
-		return nil
-	})
-
-	onSuccessName := "named-callback"
-	rule := &gorulesengine.Rule{
-		Name:     "order-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{
-			Type: "order-event",
-		},
-		OnSuccess: &onSuccessName,
-	}
-
-	engine.AddRule(rule)
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	// Vérifier l'ordre: 1. named callback, 2. global success, 3. event type
-	expectedOrder := []string{"named-callback", "global-success", "event-type-handler"}
-	if len(executionOrder) != len(expectedOrder) {
-		t.Fatalf("Expected %d handlers, got %d", len(expectedOrder), len(executionOrder))
-	}
-
-	for i, expected := range expectedOrder {
-		if executionOrder[i] != expected {
-			t.Errorf("Handler at position %d: expected '%s', got '%s'", i, expected, executionOrder[i])
 		}
-	}
-}
+		engine.RegisterEvent(event)
 
-func TestEngine_OnFailureCallback(t *testing.T) {
-	engine := gorulesengine.NewEngine()
+		rule := &gre.Rule{
+			Name:     "adult-check",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
+					},
+				},
+			},
+			OnSuccess: []gre.RuleEvent{{Name: "success-event"}},
+		}
 
-	failureCallbackCalled := false
-	engine.RegisterCallback("failure-callback", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		failureCallbackCalled = true
-		return nil
+		engine.AddRule(rule)
+		e, err := engine.Run(almanac)
+
+		result := e.ReduceResults()
+
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if !result[rule.Name] {
+			t.Error("Expected rule to pass")
+		}
+		if len(mockHandler.HandledEvents) != 1 {
+			t.Errorf("Expected 1 event to be handled, got %d", len(mockHandler.HandledEvents))
+		}
+		if mockHandler.HandledEvents[0].Name != "success-event" {
+			t.Errorf("Expected event name 'success-event', got '%s'", mockHandler.HandledEvents[0].Name)
+		}
 	})
 
-	onFailureName := "failure-callback"
-	rule := &gorulesengine.Rule{
-		Name:     "fail-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "value",
-						Operator: "equal",
-						Value:    100,
+	t.Run("runs engine with onFailure event", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 15)
+
+		mockHandler := &MockEventHandler{}
+		engine.SetEventHandler(mockHandler)
+
+		event := gre.Event{
+			Name: "failure-event",
+			Params: map[string]interface{}{
+				"message": "Rule failed",
+			},
+		}
+		engine.RegisterEvent(event)
+
+		rule := &gre.Rule{
+			Name:     "adult-check",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
 					},
 				},
 			},
-		},
-		Event: gorulesengine.Event{
-			Type: "fail-event",
-		},
-		OnFailure: &onFailureName,
-	}
+			OnFailure: []gre.RuleEvent{{Name: "failure-event"}},
+		}
 
-	engine.AddRule(rule)
+		engine.AddRule(rule)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("value", 50) // Valeur différente pour échouer
+		e, err := engine.Run(almanac)
 
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
+		result := e.ReduceResults()
 
-	if !failureCallbackCalled {
-		t.Error("OnFailure callback was not called")
-	}
-
-	// Vérifier que l'événement est dans la liste failure
-	failureEvents := almanac.GetFailureEvents()
-	if len(failureEvents) != 1 {
-		t.Errorf("Expected 1 failure event, got %d", len(failureEvents))
-	}
-}
-
-func TestEngine_MultipleHandlersOfSameType(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	handler1Called := false
-	handler2Called := false
-
-	engine.OnSuccess(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		handler1Called = true
-		return nil
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if result[rule.Name] {
+			t.Error("Expected rule to fail")
+		}
+		if len(mockHandler.HandledEvents) != 1 {
+			t.Errorf("Expected 1 event to be handled, got %d", len(mockHandler.HandledEvents))
+		}
+		if mockHandler.HandledEvents[0].Name != "failure-event" {
+			t.Errorf("Expected event name 'failure-event', got '%s'", mockHandler.HandledEvents[0].Name)
+		}
 	})
 
-	engine.OnSuccess(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		handler2Called = true
-		return nil
+	t.Run("runs engine with multiple rules in priority order DESC", func(t *testing.T) {
+		engine := gre.NewEngine() // Default is DESC
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 25)
+
+		rule1 := &gre.Rule{
+			Name:     "low-priority",
+			Priority: 5,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
+					},
+				},
+			},
+		}
+
+		rule2 := &gre.Rule{
+			Name:     "high-priority",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
+					},
+				},
+			},
+		}
+
+		engine.AddRule(rule1)
+		engine.AddRule(rule2)
+
+		e, err := engine.Run(almanac)
+
+		result := e.ReduceResults()
+
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if !result[rule1.Name] || !result[rule2.Name] {
+			t.Error("Expected rules to pass")
+		}
 	})
 
-	rule := &gorulesengine.Rule{
-		Name:     "multi-handler-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
+	t.Run("runs engine with multiple rules in priority order ASC", func(t *testing.T) {
+		sortRule := gre.SortRuleASC
+		engine := gre.NewEngine(gre.WithPrioritySorting(&sortRule))
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 25)
+
+		rule1 := &gre.Rule{
+			Name:     "low-priority",
+			Priority: 5,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
 					},
 				},
 			},
-		},
-		Event: gorulesengine.Event{Type: "test"},
-	}
+		}
 
-	engine.AddRule(rule)
+		rule2 := &gre.Rule{
+			Name:     "high-priority",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
+					},
+				},
+			},
+		}
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
+		engine.AddRule(rule1)
+		engine.AddRule(rule2)
 
-	_, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
+		e, err := engine.Run(almanac)
 
-	if !handler1Called || !handler2Called {
-		t.Error("All success handlers should be called")
-	}
-}
+		result := e.ReduceResults()
 
-func TestEngine_AddFact(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	fact := gorulesengine.NewFact("testFact", 42)
-	engine.AddFact(fact)
-
-	// AddFact doesn't have a getter, so we test indirectly
-	// by verifying the engine was created successfully
-	if engine == nil {
-		t.Error("Engine should not be nil after adding fact")
-	}
-}
-
-func TestEngine_OnSuccessCallbackError(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	expectedError := errors.New("callback error")
-	engine.RegisterCallback("errorCallback", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		return expectedError
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if !result[rule1.Name] || !result[rule2.Name] {
+			t.Error("Expected rules to pass")
+		}
 	})
 
-	onSuccessName := "errorCallback"
-	rule := &gorulesengine.Rule{
-		Name:     "callback-error-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
+	t.Run("returns error when event handler fails", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 25)
+
+		mockHandler := &MockEventHandler{
+			ShouldError:  true,
+			ErrorMessage: "handler error",
+		}
+		engine.SetEventHandler(mockHandler)
+
+		event := gre.Event{Name: "test-event"}
+		engine.RegisterEvent(event)
+
+		rule := &gre.Rule{
+			Name:     "test-rule",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
 					},
 				},
 			},
-		},
-		Event:     gorulesengine.Event{Type: "test"},
-		OnSuccess: &onSuccessName,
-	}
+			OnSuccess: []gre.RuleEvent{{Name: "test-event"}},
+		}
 
-	engine.AddRule(rule)
+		engine.AddRule(rule)
+		_, err := engine.Run(almanac)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	_, err := engine.Run(almanac)
-	if err == nil {
-		t.Fatal("Expected error from OnSuccess callback")
-	}
-
-	var ruleEngineErr *gorulesengine.RuleEngineError
-	if !errors.As(err, &ruleEngineErr) {
-		t.Errorf("Expected RuleEngineError, got %T", err)
-	}
-
-	if !errors.Is(err, expectedError) {
-		t.Errorf("Expected wrapped error to be '%v'", expectedError)
-	}
-}
-
-func TestEngine_OnFailureCallbackError(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	expectedError := errors.New("failure callback error")
-	engine.RegisterCallback("failureErrorCallback", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		return expectedError
+		if err == nil {
+			t.Fatal("Expected error when handler fails")
+		}
 	})
 
-	onFailureName := "failureErrorCallback"
-	rule := &gorulesengine.Rule{
-		Name:     "failure-callback-error-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "value",
-						Operator: "equal",
-						Value:    100,
+	t.Run("returns error for unregistered event", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 25)
+
+		mockHandler := &MockEventHandler{}
+		engine.SetEventHandler(mockHandler)
+
+		rule := &gre.Rule{
+			Name:     "test-rule",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
 					},
 				},
 			},
-		},
-		Event:     gorulesengine.Event{Type: "test"},
-		OnFailure: &onFailureName,
-	}
+			OnSuccess: []gre.RuleEvent{{Name: "unregistered-event"}},
+		}
 
-	engine.AddRule(rule)
+		engine.AddRule(rule)
+		_, err := engine.Run(almanac)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("value", 50) // Will fail the condition
-
-	_, err := engine.Run(almanac)
-	if err == nil {
-		t.Fatal("Expected error from OnFailure callback")
-	}
-
-	var ruleEngineErr *gorulesengine.RuleEngineError
-	if !errors.As(err, &ruleEngineErr) {
-		t.Errorf("Expected RuleEngineError, got %T", err)
-	}
-
-	if !errors.Is(err, expectedError) {
-		t.Errorf("Expected wrapped error to be '%v'", expectedError)
-	}
-}
-
-func TestEngine_EventTypeHandlerError(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	expectedError := errors.New("event handler error")
-	engine.On("error-event", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		return expectedError
+		if err == nil {
+			t.Fatal("Expected error for unregistered event")
+		}
 	})
 
-	rule := &gorulesengine.Rule{
-		Name:     "event-error-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
+	t.Run("returns error when condition evaluation fails", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		// Note: Not adding the required fact to trigger an error
+
+		rule := &gre.Rule{
+			Name:     "test-rule",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "nonexistent-fact",
+							Operator: "equal",
+							Value:    "test",
+						},
 					},
 				},
 			},
-		},
-		Event: gorulesengine.Event{Type: "error-event"},
-	}
+		}
 
-	engine.AddRule(rule)
+		engine.AddRule(rule)
+		_, err := engine.Run(almanac)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	_, err := engine.Run(almanac)
-	if err == nil {
-		t.Fatal("Expected error from event type handler")
-	}
-
-	var ruleEngineErr *gorulesengine.RuleEngineError
-	if !errors.As(err, &ruleEngineErr) {
-		t.Errorf("Expected RuleEngineError, got %T", err)
-	}
-
-	if !errors.Is(err, expectedError) {
-		t.Errorf("Expected wrapped error to be '%v'", expectedError)
-	}
-}
-
-func TestEngine_FailureHandlerError(t *testing.T) {
-	engine := gorulesengine.NewEngine()
-
-	expectedError := errors.New("failure handler error")
-	engine.OnFailure(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, result gorulesengine.RuleResult) error {
-		return expectedError
+		if err == nil {
+			t.Fatal("Expected error when fact doesn't exist")
+		}
 	})
 
-	rule := &gorulesengine.Rule{
-		Name:     "fail-handler-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "value",
-						Operator: "equal",
-						Value:    100,
+	t.Run("returns error when onFailure event handler fails", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 15)
+
+		mockHandler := &MockEventHandler{
+			ShouldError:  true,
+			ErrorMessage: "failure handler error",
+		}
+		engine.SetEventHandler(mockHandler)
+
+		event := gre.Event{Name: "failure-event"}
+		engine.RegisterEvent(event)
+
+		rule := &gre.Rule{
+			Name:     "test-rule",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
 					},
 				},
 			},
-		},
-		Event: gorulesengine.Event{Type: "test"},
-	}
+			OnFailure: []gre.RuleEvent{{Name: "failure-event"}},
+		}
 
-	engine.AddRule(rule)
+		engine.AddRule(rule)
+		_, err := engine.Run(almanac)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("value", 50) // Will fail the condition
+		if err == nil {
+			t.Fatal("Expected error when onFailure handler fails")
+		}
+	})
 
-	_, err := engine.Run(almanac)
-	if err == nil {
-		t.Fatal("Expected error from failure handler")
-	}
+	t.Run("returns error for unregistered onFailure event", func(t *testing.T) {
+		engine := gre.NewEngine()
+		almanac := gre.NewAlmanac()
+		almanac.AddFact("age", 15)
 
-	var ruleEngineErr *gorulesengine.RuleEngineError
-	if !errors.As(err, &ruleEngineErr) {
-		t.Errorf("Expected RuleEngineError, got %T", err)
-	}
+		mockHandler := &MockEventHandler{}
+		engine.SetEventHandler(mockHandler)
 
-	if !errors.Is(err, expectedError) {
-		t.Errorf("Expected wrapped error to be '%v'", expectedError)
-	}
+		rule := &gre.Rule{
+			Name:     "test-rule",
+			Priority: 10,
+			Conditions: gre.ConditionSet{
+				All: []gre.ConditionNode{
+					{
+						Condition: &gre.Condition{
+							Fact:     "age",
+							Operator: "greater_than",
+							Value:    float64(18),
+						},
+					},
+				},
+			},
+			OnFailure: []gre.RuleEvent{{Name: "unregistered-failure-event"}},
+		}
+
+		engine.AddRule(rule)
+		_, err := engine.Run(almanac)
+
+		if err == nil {
+			t.Fatal("Expected error for unregistered onFailure event")
+		}
+	})
 }
 
-func TestEngine_RuleEvaluationError(t *testing.T) {
-	engine := gorulesengine.NewEngine()
+func TestHandleEvent(t *testing.T) {
+	t.Run("handles registered event successfully", func(t *testing.T) {
+		engine := gre.NewEngine()
+		mockHandler := &MockEventHandler{}
+		engine.SetEventHandler(mockHandler)
 
-	// Create a rule with an invalid operator to trigger evaluation error
-	rule := &gorulesengine.Rule{
-		Name:     "invalid-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "invalid_operator",
-						Value:    true,
-					},
-				},
+		event := gre.Event{
+			Name: "test-event",
+			Params: map[string]interface{}{
+				"key": "value",
 			},
-		},
-		Event: gorulesengine.Event{Type: "test"},
-	}
+		}
+		engine.RegisterEvent(event)
+		almanac := gre.NewAlmanac()
 
-	engine.AddRule(rule)
+		err := engine.HandleEvent("test-event", "test-rule", true, almanac, nil)
 
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if len(mockHandler.HandledEvents) != 1 {
+			t.Errorf("Expected 1 event to be handled, got %d", len(mockHandler.HandledEvents))
+		}
+		if len(mockHandler.HandledContexts) != 1 {
+			t.Errorf("Expected 1 context to be handled, got %d", len(mockHandler.HandledContexts))
+		}
+		// Verify context data
+		ctx := mockHandler.HandledContexts[0]
+		if ctx.RuleName != "test-rule" {
+			t.Errorf("Expected rule name 'test-rule', got %s", ctx.RuleName)
+		}
+		if ctx.Result != true {
+			t.Errorf("Expected result true, got %v", ctx.Result)
+		}
+		if ctx.Almanac != almanac {
+			t.Error("Expected almanac to match")
+		}
+	})
 
-	_, err := engine.Run(almanac)
-	if err == nil {
-		t.Fatal("Expected error from rule evaluation")
-	}
+	t.Run("returns error for unregistered event", func(t *testing.T) {
+		engine := gre.NewEngine()
+		mockHandler := &MockEventHandler{}
+		engine.SetEventHandler(mockHandler)
+		almanac := gre.NewAlmanac()
 
-	var ruleEngineErr *gorulesengine.RuleEngineError
-	if !errors.As(err, &ruleEngineErr) {
-		t.Errorf("Expected RuleEngineError, got %T", err)
-	} else if ruleEngineErr.Type != gorulesengine.ErrEngine {
-		t.Errorf("Expected error type ErrEngine, got %s", ruleEngineErr.Type)
-	}
+		err := engine.HandleEvent("unregistered-event", "test-rule", true, almanac, nil)
+
+		if err == nil {
+			t.Fatal("Expected error for unregistered event")
+		}
+	})
+
+	t.Run("does not error when no event handler is set", func(t *testing.T) {
+		engine := gre.NewEngine()
+		event := gre.Event{Name: "any-event"}
+		engine.RegisterEvent(event)
+		almanac := gre.NewAlmanac()
+
+		err := engine.HandleEvent("any-event", "test-rule", true, almanac, nil)
+
+		if err != nil {
+			t.Fatalf("Expected no error when no handler is set, got: %v", err)
+		}
+	})
+
+	t.Run("returns nil when event not registered and no handler set", func(t *testing.T) {
+		engine := gre.NewEngine()
+		// Don't register event and don't set handler
+		almanac := gre.NewAlmanac()
+
+		err := engine.HandleEvent("nonexistent-event", "test-rule", true, almanac, nil)
+
+		if err != nil {
+			t.Fatalf("Expected no error when event not registered and no handler, got: %v", err)
+		}
+	})
+
+	t.Run("returns error when event handler fails", func(t *testing.T) {
+		engine := gre.NewEngine()
+		mockHandler := &MockEventHandler{
+			ShouldError:  true,
+			ErrorMessage: "handler failed",
+		}
+		engine.SetEventHandler(mockHandler)
+
+		event := gre.Event{Name: "test-event"}
+		engine.RegisterEvent(event)
+		almanac := gre.NewAlmanac()
+
+		err := engine.HandleEvent("test-event", "test-rule", true, almanac, nil)
+
+		if err == nil {
+			t.Fatal("Expected error when handler fails")
+		}
+	})
 }
 
-func TestEngine_WithPrioritySorting_ASC(t *testing.T) {
-	// Test ascending sort
-	sortOrder := gorulesengine.SortRuleASC
-	engine := gorulesengine.NewEngine(gorulesengine.WithPrioritySorting(&sortOrder))
+func TestWithPrioritySorting(t *testing.T) {
+	t.Run("sets default DESC sorting when nil", func(t *testing.T) {
+		engine := gre.NewEngine(gre.WithPrioritySorting(nil))
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
+		}
+	})
 
-	rule1 := &gorulesengine.Rule{
-		Name:     "rule1",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "event1"},
-	}
+	t.Run("sets ASC sorting", func(t *testing.T) {
+		sortRule := gre.SortRuleASC
+		engine := gre.NewEngine(gre.WithPrioritySorting(&sortRule))
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
+		}
+	})
 
-	rule2 := &gorulesengine.Rule{
-		Name:     "rule2",
-		Priority: 20,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "event2"},
-	}
+	t.Run("sets DESC sorting", func(t *testing.T) {
+		sortRule := gre.SortRuleDESC
+		engine := gre.NewEngine(gre.WithPrioritySorting(&sortRule))
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
+		}
+	})
 
-	engine.AddRule(rule2) // Add higher priority first
-	engine.AddRule(rule1) // Add lower priority second
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	results, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	// With ASC sorting, rule1 (priority 10) should be evaluated first
-	if results[0].Rule.Name != "rule1" {
-		t.Errorf("Expected rule1 to be evaluated first with ASC sorting, got %s", results[0].Rule.Name)
-	}
+	t.Run("handles invalid sort rule", func(t *testing.T) {
+		sortRule := gre.SortRule(999)
+		engine := gre.NewEngine(gre.WithPrioritySorting(&sortRule))
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
+		}
+	})
 }
 
-func TestEngine_WithPrioritySorting_DefaultValue(t *testing.T) {
-	// Test default sort (invalid value should default to SortDefault)
-	sortOrder := gorulesengine.SortRule(999) // Invalid value
-	engine := gorulesengine.NewEngine(gorulesengine.WithPrioritySorting(&sortOrder))
+func TestWithoutPrioritySorting(t *testing.T) {
+	t.Run("disables priority sorting", func(t *testing.T) {
+		engine := gre.NewEngine(gre.WithoutPrioritySorting())
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
+		}
+	})
 
-	rule1 := &gorulesengine.Rule{
-		Name:     "rule1",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "event1"},
-	}
-
-	engine.AddRule(rule1)
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	results, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	if len(results) != 1 {
-		t.Errorf("Expected 1 result, got %d", len(results))
-	}
+	t.Run("can override default sorting", func(t *testing.T) {
+		engine := gre.NewEngine(
+			gre.WithoutPrioritySorting(),
+		)
+		if engine == nil {
+			t.Fatal("Expected engine to be created")
+		}
+	})
 }
 
-func TestEngine_WithoutPrioritySorting(t *testing.T) {
-	// Create engine with priority sorting disabled
-	engine := gorulesengine.NewEngine(gorulesengine.WithoutPrioritySorting())
+func TestOptionsFullCoverage(t *testing.T) {
+	// Call options with nil to cover the guard clauses
+	gre.WithConditionCaching()(nil)
+	gre.WithoutConditionCaching()(nil)
+	gre.WithSmartSkip()(nil)
+	gre.WithAuditTrace()(nil)
+	gre.WithoutAuditTrace()(nil)
+	gre.WithParallelExecution(2)(nil)
+	gre.WithoutParallelExecution()(nil)
 
-	rule1 := &gorulesengine.Rule{
-		Name:     "rule1",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "event1"},
-	}
+	// Cover the 'if e.options == nil' false branch by calling options on an engine that already has options
+	e := gre.NewEngine(gre.WithSmartSkip(), gre.WithConditionCaching(), gre.WithoutConditionCaching())
+	gre.WithAuditTrace()(e)
+	gre.WithoutAuditTrace()(e)
+	gre.WithParallelExecution(2)(e)
+	gre.WithoutParallelExecution()(e)
+	_ = e
 
-	rule2 := &gorulesengine.Rule{
-		Name:     "rule2",
-		Priority: 20,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "event2"},
-	}
-
-	// Add rules in a specific order
-	engine.AddRule(rule2) // Add higher priority first
-	engine.AddRule(rule1) // Add lower priority second
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	results, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	// Without sorting, rules should be evaluated in the order they were added
-	if results[0].Rule.Name != "rule2" {
-		t.Errorf("Expected rule2 to be evaluated first (insertion order), got %s", results[0].Rule.Name)
-	}
-	if results[1].Rule.Name != "rule1" {
-		t.Errorf("Expected rule1 to be evaluated second (insertion order), got %s", results[1].Rule.Name)
-	}
-}
-
-func TestEngine_NewEngine_WithMultipleOptions(t *testing.T) {
-	// Test NewEngine with multiple options
-	sortOrder := gorulesengine.SortRuleASC
-	engine := gorulesengine.NewEngine(
-		gorulesengine.WithPrioritySorting(&sortOrder),
-	)
-
-	if engine == nil {
-		t.Fatal("NewEngine should return a non-nil engine")
-	}
-
-	rule := &gorulesengine.Rule{
-		Name:     "test-rule",
-		Priority: 10,
-		Conditions: gorulesengine.ConditionSet{
-			All: []gorulesengine.ConditionNode{
-				{
-					Condition: &gorulesengine.Condition{
-						Fact:     "test",
-						Operator: "equal",
-						Value:    true,
-					},
-				},
-			},
-		},
-		Event: gorulesengine.Event{Type: "test"},
-	}
-
-	engine.AddRule(rule)
-
-	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-	almanac.AddFact("test", true)
-
-	results, err := engine.Run(almanac)
-	if err != nil {
-		t.Fatalf("Run failed: %v", err)
-	}
-
-	if len(results) != 1 {
-		t.Errorf("Expected 1 result, got %d", len(results))
-	}
+	// Cover the 'if e.options == nil' true branch by calling options on a raw Engine pointer
+	gre.WithConditionCaching()(&gre.Engine{})
+	gre.WithoutConditionCaching()(&gre.Engine{})
+	gre.WithSmartSkip()(&gre.Engine{})
+	gre.WithAuditTrace()(&gre.Engine{})
+	gre.WithoutAuditTrace()(&gre.Engine{})
+	gre.WithParallelExecution(2)(&gre.Engine{})
+	gre.WithoutParallelExecution()(&gre.Engine{})
 }

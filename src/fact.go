@@ -27,10 +27,10 @@ type FactID string
 // Example:
 //
 //	// Static fact
-//	fact := gorulesengine.NewFact("age", 25)
+//	fact := gre.NewFact("age", 25)
 //
 //	// Dynamic fact
-//	fact := gorulesengine.NewFact("temperature", func(params map[string]interface{}) interface{} {
+//	fact := gre.NewFact("temperature", func(params map[string]interface{}) interface{} {
 //	    return fetchTemperatureFromAPI()
 //	})
 type Fact struct {
@@ -38,6 +38,7 @@ type Fact struct {
 	valueOrMethod interface{}
 	factType      string
 	options       map[string]interface{}
+	metadata      map[string]interface{}
 }
 
 // FactOption defines a functional option for configuring facts.
@@ -67,6 +68,18 @@ func WithPriority(priority int) FactOption {
 	}
 }
 
+// WithMetadata adds metadata to the fact.
+func WithMetadata(metadata map[string]interface{}) FactOption {
+	return func(f *Fact) {
+		if f.metadata == nil {
+			f.metadata = make(map[string]interface{})
+		}
+		for k, v := range metadata {
+			f.metadata[k] = v
+		}
+	}
+}
+
 // NewFact creates a new fact with the given ID and value or computation function.
 // If valueOrMethod is a function, the fact is dynamic and will compute its value on demand.
 // Otherwise, the fact is static with a constant value.
@@ -76,21 +89,22 @@ func WithPriority(priority int) FactOption {
 // Example:
 //
 //	// Static fact
-//	fact := gorulesengine.NewFact("age", 25)
+//	fact := gre.NewFact("age", 25)
 //
 //	// Dynamic fact with custom options
-//	fact := gorulesengine.NewFact("temperature",
+//	fact := gre.NewFact("temperature",
 //	    func(params map[string]interface{}) interface{} {
 //	        return fetchTemperature()
 //	    },
-//	    gorulesengine.WithCache(),
-//	    gorulesengine.WithPriority(10),
+//	    gre.WithCache(),
+//	    gre.WithPriority(10),
 //	)
-func NewFact(id FactID, valueOrMethod interface{}, opts ...FactOption) *Fact {
+func NewFact(id FactID, valueOrMethod interface{}, opts ...FactOption) Fact {
 	fact := Fact{
 		id:            id,
 		valueOrMethod: valueOrMethod,
 		options:       map[string]interface{}{},
+		metadata:      map[string]interface{}{},
 		factType: func() string {
 			// Use reflect to detect any function type
 			if reflect.TypeOf(valueOrMethod).Kind() == reflect.Func {
@@ -112,12 +126,17 @@ func NewFact(id FactID, valueOrMethod interface{}, opts ...FactOption) *Fact {
 		opt(&fact)
 	}
 
-	return &fact
+	return fact
 }
 
 // ID returns the unique identifier of the fact.
 func (f *Fact) ID() FactID {
 	return f.id
+}
+
+// Metadata returns the metadata associated with the fact.
+func (f *Fact) Metadata() map[string]interface{} {
+	return f.metadata
 }
 
 // ValueOrMethod returns the fact's value (for static facts) or computation function (for dynamic facts).

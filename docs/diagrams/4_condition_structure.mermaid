@@ -1,0 +1,26 @@
+graph TB
+    subgraph Example["Example: (age >= 18 AND status = 'active') OR (vip = true)"]
+        Root[ConditionSet]
+        
+        Root -->|Any OR| Node1[ConditionNode]
+        Root -->|Any OR| Node2[ConditionNode]
+        
+        Node1 -->|SubSet| CS1[ConditionSet]
+        CS1 -->|All AND| CN1[ConditionNode]
+        CS1 -->|All AND| CN2[ConditionNode]
+        
+        CN1 -->|Condition| C1["age >= 18<br/>Fact: 'age'<br/>Operator: OperatorGreaterThanInclusive<br/>Value: 18"]
+        CN2 -->|Condition| C2["status = 'active'<br/>Fact: 'status'<br/>Operator: OperatorEqual<br/>Value: 'active'"]
+        
+        Node2 -->|Condition| C3["vip = true<br/>Fact: 'vip'<br/>Operator: OperatorEqual<br/>Value: true"]
+    end
+
+    style Root fill:#FFE4B5
+    style CS1 fill:#FFE4B5
+    style Node1 fill:#B0C4DE
+    style Node2 fill:#B0C4DE
+    style CN1 fill:#B0C4DE
+    style CN2 fill:#B0C4DE
+    style C1 fill:#90EE90
+    style C2 fill:#90EE90
+    style C3 fill:#90EE90

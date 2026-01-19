@@ -1,4 +1,4 @@
-module github.com/deadelus/go-rules-engine
+module github.com/deadelus/go-rules-engine/v2
 
 go 1.24.5
 

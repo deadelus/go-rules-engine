@@ -4,13 +4,13 @@ import (
 	"errors"
 	"testing"
 
-	gorulesengine "github.com/deadelus/go-rules-engine/src"
+	gre "github.com/deadelus/go-rules-engine/v2/src"
 )
 
 func TestRuleEngineError_Error_WithWrappedError(t *testing.T) {
 	wrappedErr := errors.New("wrapped error")
-	err := &gorulesengine.RuleEngineError{
-		Type: gorulesengine.ErrEngine,
+	err := &gre.RuleEngineError{
+		Type: gre.ErrEngine,
 		Msg:  "test error message",
 		Err:  wrappedErr,
 	}
@@ -22,8 +22,8 @@ func TestRuleEngineError_Error_WithWrappedError(t *testing.T) {
 }
 
 func TestRuleEngineError_Error_WithoutWrappedError(t *testing.T) {
-	err := &gorulesengine.RuleEngineError{
-		Type: gorulesengine.ErrEngine,
+	err := &gre.RuleEngineError{
+		Type: gre.ErrEngine,
 		Msg:  "test error message",
 		Err:  nil,
 	}
@@ -36,8 +36,8 @@ func TestRuleEngineError_Error_WithoutWrappedError(t *testing.T) {
 
 func TestRuleEngineError_Unwrap(t *testing.T) {
 	wrappedErr := errors.New("wrapped error")
-	err := &gorulesengine.RuleEngineError{
-		Type: gorulesengine.ErrEngine,
+	err := &gre.RuleEngineError{
+		Type: gre.ErrEngine,
 		Msg:  "test error",
 		Err:  wrappedErr,
 	}
@@ -50,7 +50,7 @@ func TestRuleEngineError_Unwrap(t *testing.T) {
 
 func TestAlmanacError_Error(t *testing.T) {
 	wrappedErr := errors.New("almanac wrapped error")
-	err := &gorulesengine.AlmanacError{
+	err := &gre.AlmanacError{
 		Payload: "test-payload",
 		Err:     wrappedErr,
 	}
@@ -68,7 +68,7 @@ func TestAlmanacError_Error(t *testing.T) {
 
 func TestAlmanacError_Unwrap(t *testing.T) {
 	wrappedErr := errors.New("almanac wrapped error")
-	err := &gorulesengine.AlmanacError{
+	err := &gre.AlmanacError{
 		Payload: "test-payload",
 		Err:     wrappedErr,
 	}
@@ -81,7 +81,7 @@ func TestAlmanacError_Unwrap(t *testing.T) {
 
 func TestOperatorError_Error(t *testing.T) {
 	wrappedErr := errors.New("operator error")
-	err := &gorulesengine.OperatorError{
+	err := &gre.OperatorError{
 		Operator:     "equal",
 		Value:        10,
 		CompareValue: 20,
@@ -101,7 +101,7 @@ func TestOperatorError_Error(t *testing.T) {
 
 func TestOperatorError_Unwrap(t *testing.T) {
 	wrappedErr := errors.New("operator error")
-	err := &gorulesengine.OperatorError{
+	err := &gre.OperatorError{
 		Operator:     "equal",
 		Value:        10,
 		CompareValue: 20,
@@ -116,12 +116,12 @@ func TestOperatorError_Unwrap(t *testing.T) {
 
 func TestRuleError_Error(t *testing.T) {
 	wrappedErr := errors.New("rule error")
-	rule := gorulesengine.Rule{
+	rule := gre.Rule{
 		Name:     "test-rule",
 		Priority: 10,
 	}
 
-	err := &gorulesengine.RuleError{
+	err := &gre.RuleError{
 		Rule: rule,
 		Err:  wrappedErr,
 	}
@@ -139,12 +139,12 @@ func TestRuleError_Error(t *testing.T) {
 
 func TestRuleError_Unwrap(t *testing.T) {
 	wrappedErr := errors.New("rule error")
-	rule := gorulesengine.Rule{
+	rule := gre.Rule{
 		Name:     "test-rule",
 		Priority: 10,
 	}
 
-	err := &gorulesengine.RuleError{
+	err := &gre.RuleError{
 		Rule: rule,
 		Err:  wrappedErr,
 	}
@@ -157,13 +157,13 @@ func TestRuleError_Unwrap(t *testing.T) {
 
 func TestConditionError_Error(t *testing.T) {
 	wrappedErr := errors.New("condition error")
-	condition := gorulesengine.Condition{
+	condition := gre.Condition{
 		Fact:     "age",
 		Operator: "greater_than",
 		Value:    18,
 	}
 
-	err := &gorulesengine.ConditionError{
+	err := &gre.ConditionError{
 		Condition: condition,
 		Err:       wrappedErr,
 	}
@@ -181,13 +181,13 @@ func TestConditionError_Error(t *testing.T) {
 
 func TestConditionError_Unwrap(t *testing.T) {
 	wrappedErr := errors.New("condition error")
-	condition := gorulesengine.Condition{
+	condition := gre.Condition{
 		Fact:     "age",
 		Operator: "greater_than",
 		Value:    18,
 	}
 
-	err := &gorulesengine.ConditionError{
+	err := &gre.ConditionError{
 		Condition: condition,
 		Err:       wrappedErr,
 	}
@@ -200,10 +200,10 @@ func TestConditionError_Unwrap(t *testing.T) {
 
 func TestFactError_Error(t *testing.T) {
 	wrappedErr := errors.New("fact error")
-	fact := gorulesengine.NewFact("testFact", 42)
+	fact := gre.NewFact("testFact", 42)
 
-	err := &gorulesengine.FactError{
-		Fact: *fact,
+	err := &gre.FactError{
+		Fact: fact,
 		Err:  wrappedErr,
 	}
 
@@ -220,10 +220,10 @@ func TestFactError_Error(t *testing.T) {
 
 func TestFactError_Unwrap(t *testing.T) {
 	wrappedErr := errors.New("fact error")
-	fact := gorulesengine.NewFact("testFact", 42)
+	fact := gre.NewFact("testFact", 42)
 
-	err := &gorulesengine.FactError{
-		Fact: *fact,
+	err := &gre.FactError{
+		Fact: fact,
 		Err:  wrappedErr,
 	}
 
@@ -235,17 +235,17 @@ func TestFactError_Unwrap(t *testing.T) {
 
 func TestErrorTypes_Constants(t *testing.T) {
 	tests := []struct {
-		errorType gorulesengine.ErrorType
+		errorType gre.ErrorType
 		expected  string
 	}{
-		{gorulesengine.ErrEngine, "ENGINE_ERROR"},
-		{gorulesengine.ErrAlmanac, "ALMANAC_ERROR"},
-		{gorulesengine.ErrFact, "FACT_ERROR"},
-		{gorulesengine.ErrRule, "RULE_ERROR"},
-		{gorulesengine.ErrCondition, "CONDITION_ERROR"},
-		{gorulesengine.ErrOperator, "OPERATOR_ERROR"},
-		{gorulesengine.ErrEvent, "EVENT_ERROR"},
-		{gorulesengine.ErrJSON, "JSON_ERROR"},
+		{gre.ErrEngine, "ENGINE_ERROR"},
+		{gre.ErrAlmanac, "ALMANAC_ERROR"},
+		{gre.ErrFact, "FACT_ERROR"},
+		{gre.ErrRule, "RULE_ERROR"},
+		{gre.ErrCondition, "CONDITION_ERROR"},
+		{gre.ErrOperator, "OPERATOR_ERROR"},
+		{gre.ErrEvent, "EVENT_ERROR"},
+		{gre.ErrJSON, "JSON_ERROR"},
 	}
 
 	for _, tt := range tests {
@@ -259,8 +259,8 @@ func TestErrors_WithErrorsIs(t *testing.T) {
 	baseErr := errors.New("base error")
 
 	// Test with RuleEngineError
-	engineErr := &gorulesengine.RuleEngineError{
-		Type: gorulesengine.ErrEngine,
+	engineErr := &gre.RuleEngineError{
+		Type: gre.ErrEngine,
 		Msg:  "test",
 		Err:  baseErr,
 	}
@@ -270,7 +270,7 @@ func TestErrors_WithErrorsIs(t *testing.T) {
 	}
 
 	// Test with AlmanacError
-	almanacErr := &gorulesengine.AlmanacError{
+	almanacErr := &gre.AlmanacError{
 		Payload: "test",
 		Err:     baseErr,
 	}
@@ -282,19 +282,19 @@ func TestErrors_WithErrorsIs(t *testing.T) {
 
 func TestErrors_WithErrorsAs(t *testing.T) {
 	// Create a RuleEngineError
-	originalErr := &gorulesengine.RuleEngineError{
-		Type: gorulesengine.ErrEngine,
+	originalErr := &gre.RuleEngineError{
+		Type: gre.ErrEngine,
 		Msg:  "test error",
 		Err:  errors.New("base"),
 	}
 
 	// Test errors.As
-	var targetErr *gorulesengine.RuleEngineError
+	var targetErr *gre.RuleEngineError
 	if !errors.As(originalErr, &targetErr) {
 		t.Error("errors.As should work with RuleEngineError")
 	}
 
-	if targetErr.Type != gorulesengine.ErrEngine {
-		t.Errorf("Expected error type %s, got %s", gorulesengine.ErrEngine, targetErr.Type)
+	if targetErr.Type != gre.ErrEngine {
+		t.Errorf("Expected error type %s, got %s", gre.ErrEngine, targetErr.Type)
 	}
 }

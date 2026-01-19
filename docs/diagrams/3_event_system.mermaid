@@ -1,0 +1,54 @@
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph RuleDefinition["📜 Rule Definition"]
+        RD1["OnSuccess: []RuleEvent"]
+        RD2["OnFailure: []RuleEvent"]
+  end
+ subgraph RuleEvent["🎈 RuleEvent"]
+        RE1["Name: string"]
+        RE2["Params: map"]
+  end
+ subgraph EventDefinition["🔔 Event Registration"]
+        ED1["Event.Name: string"]
+        ED2["Event.Mode: Sync/Async"]
+        ED3["Event.Action: func"]
+        ED4["Event.Params: map"]
+  end
+ subgraph EngineHandlers["🎯 Engine Handlers"]
+        EH1["events: map[string]Event"]
+        EH2["eventHandler: global EventHandler"]
+  end
+ subgraph Evaluation["⚖️ Rule Evaluation"]
+        EV1{"ConditionSet<br>Match?"}
+  end
+ subgraph HandlerExecution["🔔 Event Triggering"]
+        HE1["HandleEvent(event)"]
+        HE2["Check Event.Mode"]
+        HE3["Execute Sync Action"]
+        HE4["Execute Async (Goroutine)"]
+  end
+    RuleDefinition -- triggers --> RuleEvent
+    RuleEvent -- references --> EventDefinition
+    RuleDefinition --> Evaluation
+    Evaluation -- true --> T1["Loop OnSuccess"]
+    Evaluation -- false --> T2["Loop OnFailure"]
+    T1 --> HE1
+    T2 --> HE1
+    HE1 --> HE2
+    HE2 -- Sync --> HE3
+    HE2 -- Async --> HE4
+    HE3 --> A1["1. event.Action(ctx)"]
+    A1 --> A2["2. eventHandler.Handle(event, ctx)"]
+    HE4 -.-> A1
+    EH1 -. lookup .-> HE1
+    EH2 -. execute .-> A2
+    EventDefinition --> EngineHandlers
+
+    style HE1 fill:#FFE4B5
+    style T1 fill:#90EE90
+    style T2 fill:#FFB6C1
+    style A1 fill:#B0C4DE
+    style A2 fill:#B0C4DE

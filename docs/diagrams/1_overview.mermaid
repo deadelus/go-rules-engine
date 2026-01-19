@@ -1,0 +1,83 @@
+---
+config:
+  layout: fixed
+  theme: base
+---
+flowchart TB
+ subgraph Engine["🎯 Engine (Configuration)"]
+        E1["rules: []*Rule"]
+        E2["eventHandler: EventHandler"]
+        E3["events: map[string]Event"]
+        E4["metrics: MetricsCollector"]
+        E5["options: map[string]interface{}"]
+        E6["Parallel Evaluation: Worker Pool"]
+        E7["Mutex: sync.RWMutex"]
+  end
+ subgraph Loaders["📂 Provisioning & Hot-Reload"]
+        LP["RuleProvider (HTTP/JSON/...)"]
+        HR["HotReloader (Polling)"]
+  end
+ subgraph Almanac["📋 Almanac (Runtime Ctx)"]
+        A1["facts: map[FactID]*Fact"]
+        A2["factResultsCache: map[string]interface{}"]
+        A3["conditionResultsCache: map[string]interface{}"]
+        A4["options: map[string]interface{}"]
+  end
+ subgraph Rule["📜 Rule (Business Logic)"]
+        R1["Name: string"]
+        R2["Priority: int"]
+        R3["Conditions: ConditionSet"]
+        R4["OnSuccess: []RuleEvent"]
+        R5["OnFailure: []RuleEvent"]
+        R6["Result: bool"]
+  end
+ subgraph RuleEvent["🎈 RuleEvent"]
+        RE1["Name: string"]
+        RE2["Params: map[string]any"]
+  end
+ subgraph ConditionSet["🔀 ConditionSet (Logic)"]
+        CS1["All: []ConditionNode"]
+        CS2["Any: []ConditionNode"]
+        CS3["None: []ConditionNode"]
+        CS4["cachedKey: string"]
+  end
+ subgraph ConditionNode["🔗 ConditionNode"]
+        CN1["Condition: *Condition"]
+        CN2["SubSet: *ConditionSet"]
+  end
+ subgraph Condition["✓ Condition (Comparison)"]
+        C1["Fact: FactID"]
+        C2["Operator: OperatorType"]
+        C3["Value: interface{}"]
+        C4["Path: string"]
+        C5["Params: map[string]interface{}"]
+        C6["cachedKey: string"]
+  end
+ subgraph Fact["📊 Fact (Data Source)"]
+        F1["id: FactID"]
+        F2["valueOrMethod: interface{}"]
+        F3["options: map[string]interface{}"]
+        F4["metadata: map[string]interface{}"]
+  end
+ subgraph Event["🔔 Event"]
+        EV1["Name: string"]
+        EV2["Mode: EventMode"]
+        EV3["Params: map[string]interface{}"]
+        EV4["Action: func(EventContext) error"]
+  end
+    Engine -- contains --> Rule & Event
+    Engine -- Run --> Almanac
+    Engine -- GenerateResponse --> Response["EngineResponse"]
+    Rule -- defines --> RuleEvent
+    RuleEvent -- references --> Event
+    Rule -- has --> ConditionSet
+    ConditionSet -- contains --> ConditionNode
+    ConditionNode -- leaf --> Condition
+    ConditionNode -- nested --> ConditionSet
+    Condition -- uses --> Operator["Operator"]
+    Condition -- references --> Fact
+    Almanac -- stores --> Fact
+    Almanac -- caches --> Fact & Condition & ConditionSet
+    HR -- polls --> LP
+    HR -- thread-safe update --> Engine
+    LP -- source --> Engine

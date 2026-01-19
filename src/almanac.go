@@ -11,6 +11,9 @@ import (
 // AlmanacOptionKeyAllowUndefinedFacts is the option key for allowing undefined facts.
 const AlmanacOptionKeyAllowUndefinedFacts = "allowUndefinedFacts"
 
+// AlmanacOptionKeyCacheConditions is the option key for enabling condition results caching.
+const AlmanacOptionKeyCacheConditions = "cacheConditions"
+
 // EventOutcome represents an event outcome triggered by a rule.
 type EventOutcome string
 
@@ -24,16 +27,12 @@ const EventOutcomeFailure EventOutcome = "failure"
 // It maintains a cache for fact values, tracks events, and manages rule results.
 // Almanac is thread-safe for concurrent access.
 type Almanac struct {
-	factMap          map[FactID]*Fact
-	factResultsCache map[string]interface{}
-	events           struct {
-		success []Event
-		failure []Event
-	}
-	ruleResults  []RuleResult
-	pathResolver PathResolver
-	options      map[string]interface{}
-	mutex        sync.RWMutex
+	facts                 map[FactID]*Fact
+	factResultsCache      map[string]interface{}
+	conditionResultsCache map[string]interface{}
+	pathResolver          PathResolver
+	options               map[string]interface{}
+	mutex                 sync.RWMutex
 }
 
 // AlmanacOption defines a functional option for configuring an Almanac.
@@ -59,37 +58,38 @@ func AllowUndefinedFacts() AlmanacOption {
 	}
 }
 
+// WithAlmanacConditionCaching enables caching of condition results.
+func WithAlmanacConditionCaching() AlmanacOption {
+	return func(a *Almanac) {
+		a.options[AlmanacOptionKeyCacheConditions] = true
+	}
+}
+
 // NewAlmanac creates a new Almanac instance with the provided facts and options.
 // The almanac is initialized with default settings including undefined fact handling.
 //
 // Example:
 //
-//	almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+//	almanac := gre.NewAlmanac([]*gre.Fact{})
 //	almanac.AddFact("age", 25)
 //	almanac.AddFact("country", "FR")
-func NewAlmanac(facts []*Fact, opts ...AlmanacOption) *Almanac {
+func NewAlmanac(opts ...AlmanacOption) *Almanac {
 	a := &Almanac{
-		factMap:          make(map[FactID]*Fact),
-		factResultsCache: make(map[string]interface{}),
-		events: struct {
-			success []Event
-			failure []Event
-		}{},
-		ruleResults:  []RuleResult{},
-		pathResolver: DefaultPathResolver,
-		options:      make(map[string]interface{}),
+		facts:                 make(map[FactID]*Fact),
+		factResultsCache:      make(map[string]interface{}),
+		conditionResultsCache: make(map[string]interface{}),
+		pathResolver:          DefaultPathResolver,
+		options:               make(map[string]interface{}),
 	}
 
 	AllowUndefinedFacts()(a)
 
 	for _, opt := range opts {
-		opt(a)
+		if opt != nil {
+			opt(a)
+		}
 	}
 
-	// Add provided facts to the fact map
-	for _, fact := range facts {
-		a.factMap[fact.ID()] = fact
-	}
 	return a
 }
 
@@ -111,8 +111,26 @@ func (a *Almanac) AddFact(id FactID, valueOrMethod interface{}, opts ...FactOpti
 	defer a.mutex.Unlock()
 
 	fact := NewFact(id, valueOrMethod, opts...)
-	a.factMap[id] = fact
+	a.facts[id] = &fact
 
+	a.PreCacheFactValue(&fact)
+
+	return nil
+}
+
+// AddFacts adds multiple facts to the almanac.
+func (a *Almanac) AddFacts(facts ...*Fact) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	for _, fact := range facts {
+		a.facts[fact.ID()] = fact
+		a.PreCacheFactValue(fact)
+	}
+}
+
+// PreCacheFactValue computes and caches the value of a fact if caching is enabled.
+func (a *Almanac) PreCacheFactValue(fact *Fact) {
 	// Pre-cache the static fact value if caching is enabled
 	if cacheEnabled, ok := fact.options[FactOptionKeyCache].(bool); ok && cacheEnabled {
 		if !fact.IsDynamic() {
@@ -120,8 +138,6 @@ func (a *Almanac) AddFact(id FactID, valueOrMethod interface{}, opts ...FactOpti
 			a.factResultsCache[cacheKey] = fact.ValueOrMethod()
 		}
 	}
-
-	return nil
 }
 
 // GetFactValue retrieves the value of a fact by its ID.
@@ -143,7 +159,7 @@ func (a *Almanac) GetFactValue(factID FactID, params map[string]interface{}, pat
 
 	// Read lock for concurrent access
 	a.mutex.RLock()
-	fact, exists = a.factMap[factID]
+	fact, exists = a.facts[factID]
 	a.mutex.RUnlock()
 
 	// Fact not found
@@ -199,13 +215,36 @@ func (a *Almanac) GetFactValueFromCache(factID FactID) (interface{}, bool) {
 	a.mutex.RLock()
 	defer a.mutex.RUnlock()
 
-	fact := a.factMap[factID]
+	fact := a.facts[factID]
 
 	cacheKey, _ := fact.GetCacheKey()
 
 	cachedVal, cached := a.factResultsCache[cacheKey]
 
 	return cachedVal, cached
+}
+
+// GetConditionResultFromCache retrieves a condition result from the cache.
+func (a *Almanac) GetConditionResultFromCache(key string) (interface{}, bool) {
+	a.mutex.RLock()
+	defer a.mutex.RUnlock()
+
+	result, cached := a.conditionResultsCache[key]
+	return result, cached
+}
+
+// SetConditionResultCache stores a condition result in the cache.
+func (a *Almanac) SetConditionResultCache(key string, result interface{}) {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
+	a.conditionResultsCache[key] = result
+}
+
+// IsConditionCachingEnabled checks if condition caching is enabled in the almanac.
+func (a *Almanac) IsConditionCachingEnabled() bool {
+	enabled, ok := a.options[AlmanacOptionKeyCacheConditions].(bool)
+	return ok && enabled
 }
 
 // TraversePath is a helper to traverse nested structures based on a path expression.
@@ -236,61 +275,5 @@ func (a *Almanac) GetOptions() map[string]interface{} {
 
 // GetFacts returns the almanac's fact map
 func (a *Almanac) GetFacts() map[FactID]*Fact {
-	return a.factMap
-}
-
-// AddFailureEvent adds a failure event to the almanac
-func (a *Almanac) AddFailureEvent(event Event) {
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-
-	a.events.failure = append(a.events.failure, event)
-}
-
-// AddSuccessEvent adds a success event to the almanac
-func (a *Almanac) AddSuccessEvent(event Event) {
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-
-	a.events.success = append(a.events.success, event)
-}
-
-// GetEvents retrieves events from the almanac based on outcome
-func (a *Almanac) GetEvents() []Event {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-
-	return append(a.events.success, a.events.failure...)
-}
-
-// GetSuccessEvents retrieves all success events from the almanac
-func (a *Almanac) GetSuccessEvents() []Event {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-
-	return a.events.success
-}
-
-// GetFailureEvents retrieves all failure events from the almanac
-func (a *Almanac) GetFailureEvents() []Event {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-
-	return a.events.failure
-}
-
-// AddResult adds a rule result to the almanac
-func (a *Almanac) AddResult(result RuleResult) {
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-
-	a.ruleResults = append(a.ruleResults, result)
-}
-
-// GetResults returns all rule results from the almanac
-func (a *Almanac) GetResults() []RuleResult {
-	a.mutex.RLock()
-	defer a.mutex.RUnlock()
-
-	return a.ruleResults
+	return a.facts
 }

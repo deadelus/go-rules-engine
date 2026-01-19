@@ -92,7 +92,7 @@ func GetOperator(opType OperatorType) (Operator, error) {
 //	    }
 //	    return strings.HasPrefix(str, prefix), nil
 //	}
-//	gorulesengine.RegisterOperator("starts_with", &StartsWithOperator{})
+//	gre.RegisterOperator("starts_with", &StartsWithOperator{})
 func RegisterOperator(opType OperatorType, operator Operator) {
 	operatorRegistry[opType] = operator
 }

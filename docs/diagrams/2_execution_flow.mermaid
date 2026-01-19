@@ -1,0 +1,135 @@
+---
+config:
+  look: neo
+  theme: redux-color
+---
+sequenceDiagram
+    autonumber
+    participant User
+    participant Engine
+    participant Rule
+    participant ConditionSet
+    participant Condition
+    participant Almanac
+    participant Fact
+    participant Operator
+    participant Metrics
+    participant Handler
+
+    User->>Engine: Run(almanac)
+    activate Engine
+    Engine->>Engine: RLock() & Snapshot Rules/Options
+    Engine->>Engine: RUnlock()
+    Engine->>Metrics: ObserveEngineRun(rulesCount)
+    Engine->>Engine: sortRulesByPriority()
+
+    alt Parallel Evaluation Enabled
+        Engine->>Engine: runParallel(almanac)
+        Note over Engine: Start Worker Pool (N)
+        par Concurrent Evaluation
+            loop For each Rule
+                Note over Engine: Send to Workers
+                Engine->>Rule: Evaluate Conditions
+                Rule->>ConditionSet: Evaluate(almanac)
+                Note over ConditionSet, Operator: (Standard Condition Evaluation)
+                ConditionSet-->>Rule: *ConditionSetResult
+                Rule-->>Engine: *ConditionSetResult
+            end
+        and Results Ordering
+            Note over Engine: Collect results from channel
+            Note over Engine: Preserve priority order
+        end
+    else Sequential Evaluation (Default)
+        loop For each Rule
+            opt Smart Skip Enabled
+                Engine->>Rule: GetRequiredFacts()
+                Engine->>Almanac: GetFacts()
+                Note over Engine, Almanac: If facts missing, skip rule
+            end
+
+            Engine->>Rule: Evaluate Conditions
+            activate Rule
+            Rule->>ConditionSet: Evaluate(almanac)
+            activate ConditionSet
+            alt ConditionSet in cache
+                Almanac-->>ConditionSet: cached ConditionSetResult
+            else
+                opt Condition caching enabled
+                    ConditionSet->>ConditionSet: ReorderNodes(cached first)
+                end
+                loop For each ConditionNode
+                    ConditionSet->>Condition: Evaluate(almanac)
+                    activate Condition
+                    
+                    alt Condition in cache
+                        Almanac-->>Condition: cached ConditionResult
+                    else
+                        Condition->>Almanac: GetFactValue(factID, params, path)
+                        activate Almanac
+                        
+                        alt Fact in cache
+                            Almanac-->>Condition: cached value
+                        else Calculate needed
+                            Almanac->>Fact: Calculate(params)
+                            activate Fact
+                            Fact-->>Almanac: computed value
+                            deactivate Fact
+                            Almanac->>Almanac: cache value
+                            Almanac-->>Condition: computed value
+                        end
+                        deactivate Almanac
+                        
+                        Condition->>Operator: Evaluate(factValue, compareValue)
+                        activate Operator
+                        Operator-->>Condition: evaluation result (bool)
+                        deactivate Operator
+                        
+                        opt Caching enabled
+                            Condition->>Almanac: SetConditionResultCache(key, ConditionResult)
+                        end
+                    end
+                    Condition-->>ConditionSet: *ConditionResult
+                    deactivate Condition
+                end
+                opt Caching enabled
+                    ConditionSet->>Almanac: SetConditionResultCache(key, ConditionSetResult)
+                end
+            end
+            ConditionSet-->>Rule: *ConditionSetResult
+            deactivate ConditionSet
+            Rule-->>Engine: *ConditionSetResult
+            Engine->>Metrics: ObserveRuleEvaluation(name, result, duration)
+            deactivate Rule
+        end
+    end
+
+    Note over Engine: Finalize Run
+    Engine->>Metrics: ObserveEngineRun(totalDuration)
+    
+    Note over Engine: Event Triggering (Always Sequential)
+    loop For each Rule
+        Engine->>Engine: results[ruleName] = RuleResult (inc. Trace)
+        alt result == true
+            loop event in Rule.OnSuccess
+                Engine->>Engine: HandleEvent(event.Name, ruleName, true, almanac, event.Params)
+                activate Engine
+                alt Sync Mode
+                    Engine->>Handler: event.Action(ctx)
+                    Engine->>Handler: eventHandler.Handle(event, ctx)
+                    Engine->>Metrics: ObserveEventExecution(name, true, duration)
+                else Async Mode
+                    Note over Engine: Run in goroutine
+                    Note over Metrics: (Metrics captured in background)
+                end
+                deactivate Engine
+            end
+        else result == false
+            loop event in Rule.OnFailure
+                Engine->>Engine: HandleEvent(event.Name, ruleName, false, almanac, event.Params)
+            end
+        end
+    end
+    Engine->>Engine: GenerateResponse()
+    Note over Engine: Aggregate decision, reason, events, and metadata
+    Engine-->>User: *EngineResponse, error
+    deactivate Engine

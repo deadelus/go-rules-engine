@@ -9,13 +9,16 @@ A powerful and flexible business rules engine for Go, inspired by [json-rules-en
 ## ✨ Features
 
 - 🎯 **JSON or Code-defined Rules** - Load rules from JSON files or create them directly in Go
-- 🔄 **Complex Conditions** - Support `all` and `any` operators with infinite nesting
+- 🔄 **Complex Conditions** - Support `all`, `any`, and `none` operators with infinite nesting
 - 📊 **Rich Operators** - 11 built-in operators including `equal`, `greater_than`, `contains`, `regex` and more
 - 🎪 **Event System** - Custom callbacks and global handlers to react to results
 - 💾 **Dynamic Facts** - Compute values on-the-fly with callbacks
 - 🧮 **JSONPath Support** - Access nested data with `$.path.to.value`
 - ⚡ **Rule Priorities** - Control evaluation order with configurable priority sorting (ASC/DESC)
+- ⚡ **High Performance** - Condition caching, pre-calculation of cache keys, and smart skipping of rules
+- 🔍 **Audit Trace** - Full evaluation tree with fact values, compatible with caching and JSON serialization
 - 🔒 **Thread-safe** - Protected by mutexes for concurrent usage
+- 🔥 **Hot-reload Support** - Update rules from remote sources (HTTP) without restarting
 - ✅ **100% Test Coverage** - Robust and thoroughly tested code
 
 ## 📦 Installation
@@ -26,285 +29,34 @@ go get github.com/deadelus/go-rules-engine
 
 ## 🚀 Quick Start
 
-### Basic Example
-
-```go
-package main
-
-import (
-    "fmt"
-    gorulesengine "github.com/deadelus/go-rules-engine/src"
-)
-
-func main() {
-    // 1. Create the rules engine
-    engine := gorulesengine.NewEngine()
-
-    // 2. Define a rule
-    rule := &gorulesengine.Rule{
-        Name:     "adult-user",
-        Priority: 10,
-        Conditions: gorulesengine.ConditionSet{
-            All: []gorulesengine.ConditionNode{
-                {
-                    Condition: &gorulesengine.Condition{
-                        Fact:     "age",
-                        Operator: "greater_than",
-                        Value:    18,
-                    },
-                },
-            },
-        },
-        Event: gorulesengine.Event{
-            Type: "user-is-adult",
-            Params: map[string]interface{}{
-                "message": "Adult user detected",
-            },
-        },
-    }
-
-    // 3. Add the rule to the engine
-    engine.AddRule(rule)
-
-    // 4. Create the almanac with facts
-    almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-    almanac.AddFact("age", 25)
-
-    // 5. Run the engine
-    results, err := engine.Run(almanac)
-    if err != nil {
-        panic(err)
-    }
-
-    // 6. Display results
-    for _, result := range results {
-        if result.Result {
-            fmt.Printf("✅ Rule '%s' triggered!\n", result.Rule.Name)
-            fmt.Printf("   Event: %s\n", result.Event.Type)
-        }
-    }
-}
-```
-
-### Engine Configuration with Priority Sorting
-
-```go
-package main
-
-import (
-    "fmt"
-    gorulesengine "github.com/deadelus/go-rules-engine/src"
-)
-
-func main() {
-    // Create engine with ascending priority (lower priority first)
-    sortOrder := gorulesengine.SortRuleASC
-    engine := gorulesengine.NewEngine(gorulesengine.WithPrioritySorting(&sortOrder))
-
-    // Add rules with different priorities
-    highPriorityRule := &gorulesengine.Rule{
-        Name:     "high-priority",
-        Priority: 100,
-        Conditions: gorulesengine.ConditionSet{
-            All: []gorulesengine.ConditionNode{
-                {Condition: &gorulesengine.Condition{Fact: "test", Operator: "equal", Value: true}},
-            },
-        },
-        Event: gorulesengine.Event{Type: "high-event"},
-    }
-
-    lowPriorityRule := &gorulesengine.Rule{
-        Name:     "low-priority",
-        Priority: 10,
-        Conditions: gorulesengine.ConditionSet{
-            All: []gorulesengine.ConditionNode{
-                {Condition: &gorulesengine.Condition{Fact: "test", Operator: "equal", Value: true}},
-            },
-        },
-        Event: gorulesengine.Event{Type: "low-event"},
-    }
-
-    engine.AddRule(highPriorityRule)
-    engine.AddRule(lowPriorityRule)
-
-    almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-    almanac.AddFact("test", true)
-
-    results, _ := engine.Run(almanac)
-    
-    // With ASC sorting: low-priority (10) is evaluated before high-priority (100)
-    for _, result := range results {
-        fmt.Printf("Rule '%s' (priority %d) evaluated\n", result.Rule.Name, result.Rule.Priority)
-    }
-}
-```
-
-### Load Rules from JSON
-
-```go
-package main
-
-import (
-    "encoding/json"
-    "fmt"
-    gorulesengine "github.com/deadelus/go-rules-engine/src"
-)
-
-func main() {
-    // Rule JSON
-    ruleJSON := `{
-        "name": "premium-user",
-        "priority": 10,
-        "conditions": {
-            "all": [
-                {
-                    "condition": {
-                        "fact": "accountType",
-                        "operator": "equal",
-                        "value": "premium"
-                    }
-                },
-                {
-                    "condition": {
-                        "fact": "revenue",
-                        "operator": "greater_than",
-                        "value": 1000
-                    }
-                }
-            ]
-        },
-        "event": {
-            "type": "premium-user-detected",
-            "params": {
-                "discount": 20
-            }
-        }
-    }`
-
-    var rule gorulesengine.Rule
-    json.Unmarshal([]byte(ruleJSON), &rule)
-
-    engine := gorulesengine.NewEngine()
-    engine.AddRule(&rule)
-
-    almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-    almanac.AddFact("accountType", "premium")
-    almanac.AddFact("revenue", 1500)
-
-    results, _ := engine.Run(almanac)
-    fmt.Printf("Rules triggered: %d\n", len(results))
-}
-```
-
-### Load Rules AND Facts from JSON
-
-```go
-package main
-
-import (
-    "encoding/json"
-    "fmt"
-    gorulesengine "github.com/deadelus/go-rules-engine/src"
-)
-
-func main() {
-    // Rules JSON
-    rulesJSON := `[
-        {
-            "name": "high-value-order",
-            "priority": 100,
-            "conditions": {
-                "all": [
-                    {
-                        "condition": {
-                            "fact": "user.isPremium",
-                            "operator": "equal",
-                            "value": true
-                        }
-                    },
-                    {
-                        "condition": {
-                            "fact": "order.total",
-                            "operator": "greater_than",
-                            "value": 100
-                        }
-                    }
-                ]
-            },
-            "event": {
-                "type": "premium-discount",
-                "params": {"discount": 25}
-            }
-        }
-    ]`
-
-    // Facts JSON (data)
-    factsJSON := `{
-        "user": {
-            "id": 12345,
-            "isPremium": true,
-            "name": "Alice"
-        },
-        "order": {
-            "id": "ORD-001",
-            "total": 150.50
-        }
-    }`
-
-    // Load rules
-    var rules []*gorulesengine.Rule
-    json.Unmarshal([]byte(rulesJSON), &rules)
-
-    // Load facts
-    var factsData map[string]interface{}
-    json.Unmarshal([]byte(factsJSON), &factsData)
-
-    // Create engine and add rules
-    engine := gorulesengine.NewEngine()
-    for _, rule := range rules {
-        engine.AddRule(rule)
-    }
-
-    // Create almanac and add facts
-    almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
-    for key, value := range factsData {
-        almanac.AddFact(gorulesengine.FactID(key), value)
-    }
-
-    // Execute
-    results, _ := engine.Run(almanac)
-    fmt.Printf("Rules triggered: %d\n", len(results))
-}
-```
+Find all our detailed examples in the [docs/examples](./docs/examples/README.md) folder.
 
 ## 📖 Documentation
 
 ### Architecture
 
-For a complete visual architecture, see the [detailed architecture documentation](ARCHITECTURE.md) with Mermaid diagrams.
+For a complete visual architecture, see the [detailed architecture documentation](docs/diagrams/README.md) with Mermaid diagrams.
 
 #### System Overview
 
-![System Overview](diagrams/overview.png)
+![System Overview](docs/diagrams/1_overview.png)
 
 The rules engine is composed of several key components working together:
 
-![Execution Flow](diagrams/sequence.png)
+![Execution Flow](docs/diagrams/2_execution_flow.png)
 
 #### 1. **Engine** - The main engine
 
-![Engine Options](diagrams/engine-options.png)
-
 ```go
 // Default engine (with descending priority sorting)
-engine := gorulesengine.NewEngine()
+engine := gre.NewEngine()
 
 // Engine with custom sorting
-sortOrder := gorulesengine.SortRuleASC
-engine := gorulesengine.NewEngine(gorulesengine.WithPrioritySorting(&sortOrder))
+sortOrder := gre.SortRuleASC
+engine := gre.NewEngine(gre.WithPrioritySorting(&sortOrder))
 
 // Engine without priority sorting (insertion order)
-engine := gorulesengine.NewEngine(gorulesengine.WithoutPrioritySorting())
+engine := gre.NewEngine(gre.WithoutPrioritySorting())
 ```
 
 **Configuration Options:**
@@ -312,36 +64,42 @@ engine := gorulesengine.NewEngine(gorulesengine.WithoutPrioritySorting())
   - `SortRuleASC` - Sort by ascending priority (lower first)
   - `SortRuleDESC` - Sort by descending priority (higher first, default)
 - `WithoutPrioritySorting()` - Disable priority sorting (evaluate rules in insertion order)
+- `WithParallelExecution(workers)` - Enable parallel evaluation with N workers
+- `WithoutParallelExecution()` - Disable parallel evaluation (sequential order)
+- `WithConditionCaching()` - Enable condition results caching
+- `WithoutConditionCaching()` - Disable condition results caching
+- `WithSmartSkip()` - Enable skipping rules with missing facts
+- `WithAuditTrace()` - Enable detailed audit trace
+- `WithoutAuditTrace()` - Disable detailed audit trace
 
 **Methods:**
 - `AddRule(rule *Rule)` - Add a rule to the engine
-- `AddFact(fact *Fact)` - Add a fact to the engine
-- `RegisterCallback(name string, callback Callback)` - Register a named callback
-- `OnSucess(handler EventHandler)` - Global handler for success
-- `OnFailure(handler EventHandler)` - Global handler for failure
-- `On(eventType string, handler EventHandler)` - Handler specific to an event type
-- `Run(almanac *Almanac) ([]RuleResult, error)` - Execute all rules
+- `RegisterEvent(event Event)` - Register a named event (with its action and mode)
+- `SetEventHandler(handler EventHandler)` - Set a global event handler for all events
+- `Run(almanac *Almanac) (*Engine, error)` - Execute all rules (returns engine for logical chaining)
+- `Results() map[string]*RuleResult` - Get detailed results of the last execution
+- `ReduceResults() map[string]bool` - Get pass/fail results for each rule
+- `GenerateResponse() *EngineResponse` - Get a consolidated, JSON-marshalable response
 
 
 #### 2. **Rule** - A business rule
 
 ```go
-rule := &gorulesengine.Rule{
-    Name:       "my-rule",
+rule := &gre.Rule{
+    Name:       "adult-check",
     Priority:   10,          // Higher = executed first
     Conditions: conditionSet,
-    Event:      event,
-    OnSuccess:  strPtr("mySuccessCallback"), // Optional
-    OnFailure:  strPtr("myFailureCallback"), // Optional
+    OnSuccess:  []gre.RuleEvent{{Name: "approve-user"}, {Name: "send-welcome-email"}},
+    OnFailure:  []gre.RuleEvent{{Name: "reject-user"}},
 }
 ```
 
 #### 3. **Condition** - A condition to evaluate
 
-![Operators](diagrams/operator.png)
+![Operators](docs/diagrams/5_operators.png)
 
 ```go
-condition := &gorulesengine.Condition{
+condition := &gre.Condition{
     Fact:     "age",
     Operator: "greater_than",
     Value:    18,
@@ -366,28 +124,28 @@ condition := &gorulesengine.Condition{
 
 ```go
 // All conditions must be true (AND)
-conditionSet := gorulesengine.ConditionSet{
-    All: []gorulesengine.ConditionNode{
+conditionSet := gre.ConditionSet{
+    All: []gre.ConditionNode{
         {Condition: &condition1},
         {Condition: &condition2},
     },
 }
 
 // At least one condition must be true (OR)
-conditionSet := gorulesengine.ConditionSet{
-    Any: []gorulesengine.ConditionNode{
+conditionSet := gre.ConditionSet{
+    Any: []gre.ConditionNode{
         {Condition: &condition1},
         {Condition: &condition2},
     },
 }
 
 // Nesting (AND of OR)
-conditionSet := gorulesengine.ConditionSet{
-    All: []gorulesengine.ConditionNode{
+conditionSet := gre.ConditionSet{
+    All: []gre.ConditionNode{
         {Condition: &condition1},
         {
-            ConditionSet: &gorulesengine.ConditionSet{
-                Any: []gorulesengine.ConditionNode{
+            SubSet: &gre.ConditionSet{
+                Any: []gre.ConditionNode{
                     {Condition: &condition2},
                     {Condition: &condition3},
                 },
@@ -399,22 +157,19 @@ conditionSet := gorulesengine.ConditionSet{
 
 #### 5. **Almanac** - Facts storage
 
-![Facts System](diagrams/fact.png)
+![Facts System](docs/diagrams/7_fact_types.png)
 
 ```go
-almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+almanac := gre.NewAlmanac()
 
 // Add simple facts
 almanac.AddFact("age", 25)
 almanac.AddFact("country", "FR")
 
 // Add dynamic facts
-almanac.AddFact("temperature", gorulesengine.Fact{
-    ID: "temperature",
-    Calculate: func(params map[string]interface{}, almanac *gorulesengine.Almanac) (interface{}, error) {
-        // Custom calculation logic
-        return fetchTemperature(), nil
-    },
+almanac.AddFact("temperature", func(params map[string]interface{}) interface{} {
+    // Custom calculation logic
+    return fetchTemperature()
 })
 
 // Retrieve a fact
@@ -424,65 +179,91 @@ value, err := almanac.GetFactValue("age", nil)
 #### 6. **Event** - Triggered event
 
 ```go
-event := gorulesengine.Event{
-    Type: "user-approved",
+event := gre.Event{
+    Name: "user-approved",
     Params: map[string]interface{}{
         "userId": 123,
         "reason": "All conditions met",
+    },
+    Mode: gre.EventModeSync, // or EventModeAsync
+    Action: func(ctx gre.EventContext) error {
+        fmt.Printf("Action triggered for rule: %s\n", ctx.RuleName)
+        return nil
     },
 }
 ```
 
 ### Callbacks and Handlers System
 
-![Event System](diagrams/event-system.png)
+![Event System](docs/diagrams/3_event_system.png)
 
-The engine provides three levels of event handlers:
+The engine provides two ways to handle results:
 
-#### Named Callbacks (defined in JSON rules)
+#### 1. Named Events (Registered in Engine)
+
+Events are registered in the engine and referenced by rules via their `OnSuccess` or `OnFailure` fields.
 
 ```go
-engine := gorulesengine.NewEngine()
+engine := gre.NewEngine()
 
-// Register the callback
-engine.RegisterCallback("sendEmail", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
-    fmt.Printf("Sending email for: %s\n", event.Type)
-    return nil
+// Register the event
+engine.RegisterEvent(gre.Event{
+    Name: "sendEmail",
+    Mode: gre.EventModeSync,
+    Action: func(ctx gre.EventContext) error {
+        fmt.Printf("Sending email for rule: %s\n", ctx.RuleName)
+        return nil
+    },
 })
 
-// In the JSON rule
-rule := &gorulesengine.Rule{
-    Name: "email-rule",
-    OnSuccess: strPtr("sendEmail"), // Reference to callback
+// Rule referencing the event
+rule := &gre.Rule{
+    Name:      "email-rule",
+    OnSuccess: []gre.RuleEvent{{Name: "sendEmail"}},
     // ...
 }
 ```
 
-#### Global Handlers
+#### 2. Global Event Handler
+
+You can set a global handler that will be called for EVERY event triggered by the engine. This is useful for logging, metrics, or centralized processing.
 
 ```go
-// Handler for all successful rules
-engine.OnSucess(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
-    fmt.Printf("✅ Successful rule: %s\n", ruleResult.Rule.Name)
-    return nil
-})
+type MyGlobalHandler struct{}
 
-// Handler for all failed rules
-engine.OnFailure(func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
-    fmt.Printf("❌ Failed rule: %s\n", ruleResult.Rule.Name)
+func (h *MyGlobalHandler) Handle(event gre.Event, ctx gre.EventContext) error {
+    fmt.Printf("🌍 Global handler: Event %s triggered by rule %s (Result: %v)\n", 
+        event.Name, ctx.RuleName, ctx.Result)
     return nil
-})
+}
+
+engine.SetEventHandler(&MyGlobalHandler{})
 ```
 
-#### Event Type Handlers
+#### Synchronous vs Asynchronous Execution
+
+You can control whether an event is executed synchronously (blocking the engine's `Run` loop) or asynchronously (in a separate goroutine).
 
 ```go
-// Specific handler for an event type
-engine.On("user-approved", func(event gorulesengine.Event, almanac *gorulesengine.Almanac, ruleResult gorulesengine.RuleResult) error {
-    userId := event.Params["userId"]
-    fmt.Printf("User %v approved!\n", userId)
-    return nil
-})
+// Synchronous event (default)
+syncEvent := gre.Event{
+    Name: "sync-event",
+    Mode: gre.EventModeSync,
+    Action: func(ctx gre.EventContext) error {
+        // Blocks the engine until finished
+        return nil
+    },
+}
+
+// Asynchronous event
+asyncEvent := gre.Event{
+    Name: "async-event",
+    Mode: gre.EventModeAsync,
+    Action: func(ctx gre.EventContext) error {
+        // Runs in a background goroutine
+        return nil
+    },
+}
 ```
 
 ### JSONPath Support
@@ -490,7 +271,7 @@ engine.On("user-approved", func(event gorulesengine.Event, almanac *gorulesengin
 Access nested data in your facts:
 
 ```go
-almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+almanac := gre.NewAlmanac([]*gre.Fact{})
 almanac.AddFact("user", map[string]interface{}{
     "profile": map[string]interface{}{
         "age": 25,
@@ -501,7 +282,7 @@ almanac.AddFact("user", map[string]interface{}{
 })
 
 // Use JSONPath in conditions
-condition := &gorulesengine.Condition{
+condition := &gre.Condition{
     Fact:     "user",
     Path:     "$.profile.address.city",
     Operator: "equal",
@@ -514,16 +295,16 @@ condition := &gorulesengine.Condition{
 Use the `regex` operator to match string values against regular expression patterns:
 
 ```go
-engine := gorulesengine.NewEngine()
+engine := gre.NewEngine()
 
 // Rule to validate email format
-emailRule := &gorulesengine.Rule{
+emailRule := &gre.Rule{
     Name:     "validate-email",
     Priority: 10,
-    Conditions: gorulesengine.ConditionSet{
-        All: []gorulesengine.ConditionNode{
+    Conditions: gre.ConditionSet{
+        All: []gre.ConditionNode{
             {
-                Condition: &gorulesengine.Condition{
+                Condition: &gre.Condition{
                     Fact:     "email",
                     Operator: "regex",
                     Value:    "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
@@ -531,18 +312,168 @@ emailRule := &gorulesengine.Rule{
             },
         },
     },
-    Event: gorulesengine.Event{Type: "valid-email"},
+    OnSuccess: []gre.RuleEvent{{Name: "valid-email-event"}},
 }
 
 engine.AddRule(emailRule)
 
-almanac := gorulesengine.NewAlmanac([]*gorulesengine.Fact{})
+almanac := gre.NewAlmanac([]*gre.Fact{})
 almanac.AddFact("email", "user@example.com")
 
 results, _ := engine.Run(almanac)
 // Will match if email is valid
 ```
 
+### 📋 Formatted API Response
+
+The engine provides a `GenerateResponse()` method that aggregates all rule results into a single, clean structure designed for API responses. It consolidates the decision, reasons (audit trace), triggered events, and fact metadata.
+
+#### 1. Define Rules in JSON
+
+```json
+[
+  {
+    "name": "premium-access",
+    "priority": 100,
+    "conditions": {
+      "all": [
+        { "fact": "user_status", "operator": "equal", "value": "vip" },
+        { "fact": "age", "operator": "greater_than_inclusive", "value": 18 }
+      ]
+    },
+    "onSuccess": [
+        { "name": "grant-access", "params": { "tier": "platinum" } }
+    ],
+    "onFailure": [
+        { "name": "restrict-access" }
+    ]
+  }
+]
+```
+
+#### 2. Get the Response
+
+```go
+engine := gre.NewEngine(gre.WithAuditTrace())
+// ... load rules and facts ...
+
+e, _ := engine.Run(almanac)
+response := e.GenerateResponse()
+
+// Marshalling to JSON
+jsonOutput, _ := json.MarshalIndent(response, "", "  ")
+fmt.Println(string(jsonOutput))
+```
+
+#### 3. Output Example
+
+```json
+{
+  "decision": "authorize",
+  "reason": {
+    "type": "all",
+    "result": true,
+    "results": [
+      {
+        "condition": {
+          "fact": "user_status",
+          "operator": "equal",
+          "value": "vip",
+          "factValue": "vip",
+          "result": true
+        }
+      },
+      {
+        "condition": {
+          "fact": "age",
+          "operator": "greater_than_inclusive",
+          "value": 18,
+          "factValue": 25,
+          "result": true
+        }
+      }
+    ]
+  },
+  "events": [
+    {
+      "type": "grant-access",
+      "params": { "tier": "platinum" }
+    }
+  ],
+  "metadata": {
+    "user_status": { "source": "db", "cached": true }
+  }
+}
+```
+
+### Audit Trace & Result Serialization
+
+The engine can collect a detailed "trace" of the evaluation process. This includes not just the final result, but the outcome of every single condition, including the actual fact values retrieved from the Almanac. 
+
+**Note:** Our implementation is fully compatible with caching. When caching is enabled, the engine stores the entire result tree, ensuring that Audit Traces remain complete and detailed even for cached results.
+
+This data is fully serializable to JSON.
+
+#### Enable Audit Trace
+
+```go
+engine := gre.NewEngine(
+    gre.WithAuditTrace(),
+)
+```
+
+#### Extract Detailed Results
+
+```go
+e, _ := engine.Run(almanac)
+
+// Get detailed trace for all rules
+results := e.Results()
+
+// Serialize to JSON
+jsonData, _ := json.MarshalIndent(results, "", "  ")
+fmt.Println(string(jsonData))
+
+// Or get simple pass/fail map
+simpleResults := e.ReduceResults()
+```
+### 🔥 Hot-reload of Rules
+
+The engine supports dynamic reloading of rules from external sources (like an HTTP API or S3) without stopping evaluation.
+
+```go
+engine := gre.NewEngine()
+
+// 1. Create a provider (HTTP source)
+provider := gre.NewHTTPRuleProvider("https://api.myapp.com/rules")
+
+// 2. Create and start the reloader
+reloader := gre.NewHotReloader(engine, provider, 5 * time.Minute)
+
+// Optional: monitor updates or errors
+reloader.OnUpdate(func(rules []*gre.Rule) {
+    fmt.Printf("Updated %d rules!\n", len(rules))
+})
+
+reloader.Start(context.Background())
+```
+### Condition Results Caching
+
+Optimize performance by caching the results of condition evaluations. This is particularly useful when multiple rules share identical conditions or when working with expensive dynamic facts.
+
+#### Enable globally via the Engine
+
+```go
+// Enabled for all rules and all Almanacs passed to this engine
+engine := gre.NewEngine(gre.WithConditionCaching())
+```
+
+#### Enable per Almanac
+
+```go
+// Enabled only for this specific Almanac
+almanac := gre.NewAlmanac(gre.WithAlmanacConditionCaching())
+```
 ### Error Handling
 
 The engine uses a typed error system for better traceability:
@@ -550,7 +481,7 @@ The engine uses a typed error system for better traceability:
 ```go
 results, err := engine.Run(almanac)
 if err != nil {
-    var ruleErr *gorulesengine.RuleEngineError
+    var ruleErr *gre.RuleEngineError
     if errors.As(err, &ruleErr) {
         fmt.Printf("Type: %s, Message: %s\n", ruleErr.Type, ruleErr.Msg)
     }
@@ -566,6 +497,59 @@ if err != nil {
 - `ErrOperator` - Invalid or not found operator
 - `ErrEvent` - Error related to events
 - `ErrJSON` - JSON parsing error
+
+## ⚡ Advanced Optimizations
+
+The engine includes several advanced performance features for high-throughput environments:
+
+### 1. Condition Caching
+Enable caching to reuse results of identical conditions or subtrees (ConditionSets) within a single engine run. This is extremely effective for overlapping conditions across multiple rules. 
+
+Unlike simple boolean caches, we store the full `ConditionResult` and `ConditionSetResult` objects, which means **Audit Traces** remain fully detailed even when using cached values.
+
+```go
+engine := gre.NewEngine(
+    gre.WithConditionCaching(), 
+)
+```
+
+### 2. Smart Skip (Dependency Tracking)
+The engine can map fact dependencies of rules and skip evaluation if the required facts are not present in the Almanac. This prevents expensive condition evaluations when data is missing.
+
+```go
+engine := gre.NewEngine(
+    gre.WithSmartSkip(),
+)
+```
+
+### 3. Rule Compilation
+When rules are added to the engine, they are automatically "compiled" (pre-calculating condition keys and dependency maps). This moves processing once from evaluation time to registration time.
+
+### 4. Short-circuit Reordering
+The evaluation engine reorders nodes within `All`, `Any`, or `None` condition sets to evaluate nodes with cached results first. This maximizes short-circuit opportunities and minimizes redundant fact fetches.
+
+*Note: This optimization is applied automatically whenever condition caching is enabled.*
+
+## 📊 Performance & Benchmarks
+
+The engine is optimized for high-throughput environments. Below are the benchmarks executed on **Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz** (macOS).
+
+### Execution Speed
+
+| Scenario | Mode | Rules Count | Time per Op | Memory | Allocs |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Simple Run** | Sequential | 1 | 769 ns | 552 B | 8 |
+| | Sequential | 10 | 5.9 µs | 3.6 KB | 56 |
+| | Sequential | 100 | 58.2 µs | 36.6 KB | 512 |
+| **Caching Impact** | No Cache | 50 | 38.9 µs | 18.3 KB | 262 |
+| | **With Cache** | 50 | **14.5 µs** | **8.7 KB** | **62** |
+| **Smart Skip** | No Skip | 1 | 6.9 µs | 3.7 KB | 40 |
+| | **With Skip** | 1 | **0.8 µs** | **0.4 KB** | **7** |
+
+### Key Takeaways
+- **Caching**: Reduces execution time by **~63%** and allocations by **~76%** for shared conditions.
+- **Smart Skip**: Avoids unnecessary computations, making evaluations **~8x faster** when facts are missing.
+- **Complex Nesting**: Evaluating complex nested conditions (5 levels deep) takes only **~1.6 µs**.
 
 ## 🧪 Tests
 
@@ -620,24 +604,9 @@ go fmt ./src/...
 - [x] Phase 8: Configurable priority sorting (ASC/DESC/disabled)
 - [x] Phase 9: Regex operator for pattern matching
 - [x] Phase 10: Ergonomic API and builders
+- [x] Phase 11: Performance and optimization
+- [x] Phase 12: Metrics, Audit Trace, Hot-reload & API Wrapper
 - [x] Complete tests with 100% coverage
-
-### 🚧 Upcoming Phases
-
-#### Phase 11: Performance and optimization
-
-- [ ] Complete benchmarks
-- [ ] Condition results caching
-- [ ] Parallel evaluation of independent rules
-- [ ] Memory and CPU profiling
-
-#### Phase 12: Advanced features
-
-- [ ] Async rules support
-- [ ] Results persistence
-- [ ] Metrics and monitoring
-- [ ] Hot-reload of rules
-- [ ] Optional REST API
 
 ## 🤝 Contributing
 

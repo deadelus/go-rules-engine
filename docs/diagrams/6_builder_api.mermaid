@@ -1,0 +1,41 @@
+graph LR
+    subgraph Builder["🏗️ RuleBuilder (Fluent API)"]
+        B1[NewRuleBuilder]
+        B2[WithName]
+        B3[WithPriority]
+        B4[WithConditions]
+        B6[WithOnSuccess]
+        B6a[WithOnSuccessEvent]
+        B7[WithOnFailure]
+        B7a[WithOnFailureEvent]
+        B8[Build]
+    end
+
+    subgraph Helpers["🛠️ Condition Helpers"]
+        H1[Equal fact, value]
+        H2[GreaterThan fact, value]
+        H3[LessThan fact, value]
+        H4[In fact, values]
+        H5[Contains fact, value]
+        H6[Regex fact, pattern]
+        H7[... 11 helpers]
+    end
+
+    subgraph SetHelpers["🔀 ConditionSet Helpers"]
+        S1["All(conditions...) → AND"]
+        S2["Any(conditions...) → OR"]
+        S3["None(conditions...) → NOT"]
+        S4["AllSets(sets...) → Nested AND"]
+        S5["AnySets(sets...) → Nested OR"]
+        S6["NoneSets(sets...) → Nested NOT"]
+    end
+
+    B1 --> B2 --> B3 --> B4 --> B6 --> B6a --> B7 --> B7a --> B8
+    B8 --> Rule[Rule]
+
+    Helpers -.->|used in| B4
+    SetHelpers -.->|used in| B4
+
+    style B1 fill:#FFE4B5
+    style B8 fill:#90EE90
+    style Rule fill:#87CEEB

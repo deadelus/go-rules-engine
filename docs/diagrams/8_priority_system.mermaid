@@ -1,0 +1,30 @@
+graph TB
+    subgraph Priority["📊 Rule Priority System"]
+        P1[Rule 1: Priority = 100]
+        P2[Rule 2: Priority = 50]
+        P3[Rule 3: Priority = 75]
+    end
+
+    subgraph EngineOptions["⚙️ Engine Options"]
+        O1[WithPrioritySorting SortRuleASC]
+        O2[WithPrioritySorting SortRuleDESC]
+        O3[WithoutPrioritySorting]
+    end
+
+    subgraph ExecutionOrder["🔄 Execution Order"]
+        E1["Default: DESC<br/>(highest first)"]
+        E2["ASC: lowest first"]
+        E3["None: insertion order"]
+    end
+
+    O1 --> E2
+    O2 --> E1
+    O3 --> E3
+
+    E1 -->|Sort| Order1["1. Rule 1 (100)<br/>2. Rule 3 (75)<br/>3. Rule 2 (50)"]
+    E2 -->|Sort| Order2["1. Rule 2 (50)<br/>2. Rule 3 (75)<br/>3. Rule 1 (100)"]
+    E3 -->|No Sort| Order3["1. Rule 1<br/>2. Rule 2<br/>3. Rule 3"]
+
+    style E1 fill:#90EE90
+    style E2 fill:#87CEEB
+    style E3 fill:#FFE4B5

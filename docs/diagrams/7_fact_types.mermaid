@@ -1,0 +1,28 @@
+graph TB
+    subgraph FactTypes["📊 Fact Types"]
+        FT[Fact]
+    end
+
+    FT --> Metadata["📁 Metadata<br/><br/>map[string]any<br/><br/>Metadata passed to EngineResponse"]
+    FT --> Static["🔒 Static Fact<br/><br/>valueOrMethod: interface{}<br/><br/>Fixed value set at creation"]
+    FT --> Dynamic["⚡ Dynamic Fact<br/><br/>valueOrMethod: func(params) interface{}<br/><br/>Computed on-demand"]
+
+    Static --> Cache1["Can be cached<br/>(default: enabled)"]
+    Dynamic --> Cache2["Can be cached<br/>(configurable via FactOption)"]
+
+    Cache1 --> Almanac1[Almanac.factResultsCache]
+    Cache2 --> Almanac2[Almanac.factResultsCache]
+
+    subgraph Examples["Examples"]
+        E1["Static:<br/>age = 25<br/>country = 'FR'"]
+        E2["Dynamic:<br/>isWeekend = func...<br/>userAge = func..."]
+    end
+
+    Static -.-> E1
+    Dynamic -.-> E2
+
+    style Static fill:#90EE90
+    style Dynamic fill:#87CEEB
+    style Almanac1 fill:#FFE4B5
+    style Almanac2 fill:#FFE4B5
+

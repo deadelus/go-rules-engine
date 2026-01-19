@@ -22,6 +22,8 @@ const (
 	ErrEvent ErrorType = "EVENT_ERROR"
 	// ErrJSON indicates an error parsing or unmarshaling JSON.
 	ErrJSON ErrorType = "JSON_ERROR"
+	// ErrLoader indicates an error related to loading rules or data.
+	ErrLoader ErrorType = "LOADER_ERROR"
 )
 
 // RuleEngineError is the base error type for all errors in the rule engine.

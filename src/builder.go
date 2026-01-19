@@ -41,24 +41,35 @@ func (rb *RuleBuilder) WithConditions(node ConditionNode) *RuleBuilder {
 	return rb
 }
 
-// WithEvent sets the event for the rule.
-func (rb *RuleBuilder) WithEvent(eventType string, params map[string]interface{}) *RuleBuilder {
-	rb.rule.Event = Event{
-		Type:   eventType,
-		Params: params,
+// WithOnSuccess sets the event names for the rule.
+func (rb *RuleBuilder) WithOnSuccess(eventNames ...string) *RuleBuilder {
+	events := make([]RuleEvent, len(eventNames))
+	for i, name := range eventNames {
+		events[i] = RuleEvent{Name: name}
 	}
+	rb.rule.OnSuccess = events
 	return rb
 }
 
-// WithOnSuccess sets the OnSuccess callback name.
-func (rb *RuleBuilder) WithOnSuccess(callbackName string) *RuleBuilder {
-	rb.rule.OnSuccess = &callbackName
+// WithOnSuccessEvent adds a detailed event with parameters to the rule.
+func (rb *RuleBuilder) WithOnSuccessEvent(event RuleEvent) *RuleBuilder {
+	rb.rule.OnSuccess = append(rb.rule.OnSuccess, event)
 	return rb
 }
 
-// WithOnFailure sets the OnFailure callback name.
-func (rb *RuleBuilder) WithOnFailure(callbackName string) *RuleBuilder {
-	rb.rule.OnFailure = &callbackName
+// WithOnFailure sets the event names for the rule.
+func (rb *RuleBuilder) WithOnFailure(eventNames ...string) *RuleBuilder {
+	events := make([]RuleEvent, len(eventNames))
+	for i, name := range eventNames {
+		events[i] = RuleEvent{Name: name}
+	}
+	rb.rule.OnFailure = events
+	return rb
+}
+
+// WithOnFailureEvent adds a detailed event with parameters to the rule.
+func (rb *RuleBuilder) WithOnFailureEvent(event RuleEvent) *RuleBuilder {
+	rb.rule.OnFailure = append(rb.rule.OnFailure, event)
 	return rb
 }
 

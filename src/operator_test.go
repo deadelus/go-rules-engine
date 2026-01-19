@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	gorulesengine "github.com/deadelus/go-rules-engine/src"
+	gre "github.com/deadelus/go-rules-engine/v2/src"
 )
 
 // Test for EqualOperator with numbers
@@ -12,7 +12,7 @@ func TestEqualOperator_EvaluateNumbers(t *testing.T) {
 	var value = 5
 	var assertedValue int = value
 	var failedValue int = 10
-	var operator gorulesengine.Operator = &gorulesengine.EqualOperator{}
+	var operator gre.Operator = &gre.EqualOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -36,7 +36,7 @@ func TestEqualOperator_EvaluateStrings(t *testing.T) {
 	var value = "test"
 	var assertedValue string = value
 	var failedValue string = "fail"
-	var operator gorulesengine.Operator = &gorulesengine.EqualOperator{}
+	var operator gre.Operator = &gre.EqualOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -59,7 +59,7 @@ func TestEqualOperator_EvaluateStrings(t *testing.T) {
 func TestEqualOperator_EvaluateUncomparable(t *testing.T) {
 	var value = []int{1, 2, 3}
 	var failedValue = func() {}
-	var operator gorulesengine.Operator = &gorulesengine.EqualOperator{}
+	var operator gre.Operator = &gre.EqualOperator{}
 
 	result, _ := operator.Evaluate(value, failedValue)
 
@@ -70,7 +70,7 @@ func TestEqualOperator_EvaluateUncomparable(t *testing.T) {
 
 // Test for EqualOperator with nil values
 func TestEqualOperator_EvaluateNilValues(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.EqualOperator{}
+	var operator gre.Operator = &gre.EqualOperator{}
 
 	// Test with nil factValue
 	_, err := operator.Evaluate(nil, "test")
@@ -96,7 +96,7 @@ func TestNotEqualOperator_EvaluateNumbers(t *testing.T) {
 	var value = 5
 	var assertedValue int = 10
 	var failedValue int = 5
-	var operator gorulesengine.Operator = &gorulesengine.NotEqualOperator{}
+	var operator gre.Operator = &gre.NotEqualOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -120,7 +120,7 @@ func TestNotEqualOperator_EvaluateStrings(t *testing.T) {
 	var value = "test"
 	var assertedValue string = "fail"
 	var failedValue string = "test"
-	var operator gorulesengine.Operator = &gorulesengine.NotEqualOperator{}
+	var operator gre.Operator = &gre.NotEqualOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -144,7 +144,7 @@ func TestNotEqualOperator_EvaluateUncomparable(t *testing.T) {
 	var value = []int{1, 2, 3}
 	var failedValue1 int = 25
 	var failedValue2 = []int{4, 5, 6}
-	var operator gorulesengine.Operator = &gorulesengine.NotEqualOperator{}
+	var operator gre.Operator = &gre.NotEqualOperator{}
 
 	result, _ := operator.Evaluate(value, failedValue1)
 
@@ -163,7 +163,7 @@ func TestLessThanOperator_EvaluateIntegers(t *testing.T) {
 	var value = 5
 	var assertedValue int = 6
 	var failedValue int = 5
-	var operator gorulesengine.Operator = &gorulesengine.LessThanOperator{}
+	var operator gre.Operator = &gre.LessThanOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -187,7 +187,7 @@ func TestLessThanOperator_EvaluateFloats(t *testing.T) {
 	var value = 5.0
 	var assertedValue float64 = 6.0
 	var failedValue float64 = 5.0
-	var operator gorulesengine.Operator = &gorulesengine.LessThanOperator{}
+	var operator gre.Operator = &gre.LessThanOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -208,7 +208,7 @@ func TestLessThanOperator_EvaluateFloats(t *testing.T) {
 
 // Test for LessThanOperator with non-numeric numbers
 func TestLessThanOperator_EvaluateNonNumericValues(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.LessThanOperator{}
+	var operator gre.Operator = &gre.LessThanOperator{}
 
 	// Test with string
 	_, err := operator.Evaluate("test", 5)
@@ -228,7 +228,7 @@ func TestLessThanInclusiveOperator_EvaluateIntegers(t *testing.T) {
 	var value = 5
 	var assertedValue int = value
 	var failedValue int = 4
-	var operator gorulesengine.Operator = &gorulesengine.LessThanInclusiveOperator{}
+	var operator gre.Operator = &gre.LessThanInclusiveOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -252,7 +252,7 @@ func TestLessThanInclusiveOperator_EvaluateFloats(t *testing.T) {
 	var value = 5.0
 	var assertedValue float64 = value
 	var failedValue float64 = 4.0
-	var operator gorulesengine.Operator = &gorulesengine.LessThanInclusiveOperator{}
+	var operator gre.Operator = &gre.LessThanInclusiveOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -273,7 +273,7 @@ func TestLessThanInclusiveOperator_EvaluateFloats(t *testing.T) {
 
 // Test for LessThanInclusiveOperator with non-numeric numbers
 func TestLessThanInclusiveOperator_EvaluateNonNumericValues(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.LessThanInclusiveOperator{}
+	var operator gre.Operator = &gre.LessThanInclusiveOperator{}
 
 	_, err := operator.Evaluate("test", 5)
 	if err == nil {
@@ -286,7 +286,7 @@ func TestGreaterThanOperator_EvaluateIntegers(t *testing.T) {
 	var value = 5
 	var assertedValue int = 4
 	var failedValue int = 5
-	var operator gorulesengine.Operator = &gorulesengine.GreaterThanOperator{}
+	var operator gre.Operator = &gre.GreaterThanOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -310,7 +310,7 @@ func TestGreaterThanOperator_EvaluateFloats(t *testing.T) {
 	var value = 5.0
 	var assertedValue float64 = 4.0
 	var failedValue float64 = 5.0
-	var operator gorulesengine.Operator = &gorulesengine.GreaterThanOperator{}
+	var operator gre.Operator = &gre.GreaterThanOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -331,7 +331,7 @@ func TestGreaterThanOperator_EvaluateFloats(t *testing.T) {
 
 // Test for GreaterThanOperator with non-numeric numbers
 func TestGreaterThanOperator_EvaluateNonNumericValues(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.GreaterThanOperator{}
+	var operator gre.Operator = &gre.GreaterThanOperator{}
 
 	_, err := operator.Evaluate("test", 5)
 	if err == nil {
@@ -344,7 +344,7 @@ func TestGreaterThanInclusiveOperator_EvaluateIntegers(t *testing.T) {
 	var value = 5
 	var assertedValue int = 5
 	var failedValue int = 6
-	var operator gorulesengine.Operator = &gorulesengine.GreaterThanInclusiveOperator{}
+	var operator gre.Operator = &gre.GreaterThanInclusiveOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -368,7 +368,7 @@ func TestGreaterThanInclusiveOperator_EvaluateFloats(t *testing.T) {
 	var value = 5.0
 	var assertedValue float64 = 5.0
 	var failedValue float64 = 6.0
-	var operator gorulesengine.Operator = &gorulesengine.GreaterThanInclusiveOperator{}
+	var operator gre.Operator = &gre.GreaterThanInclusiveOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -389,7 +389,7 @@ func TestGreaterThanInclusiveOperator_EvaluateFloats(t *testing.T) {
 
 // Test for GreaterThanInclusiveOperator with non-numeric numbers
 func TestGreaterThanInclusiveOperator_EvaluateNonNumericValues(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.GreaterThanInclusiveOperator{}
+	var operator gre.Operator = &gre.GreaterThanInclusiveOperator{}
 
 	_, err := operator.Evaluate("test", 5)
 	if err == nil {
@@ -402,7 +402,7 @@ func TestInOperator_EvaluateNumbers(t *testing.T) {
 	var value int = 5
 	var assertedValue = []int{1, 2, 3, 4, 5}
 	var failedValue = []int{6, 7, 8, 9, 10}
-	var operator gorulesengine.Operator = &gorulesengine.InOperator{}
+	var operator gre.Operator = &gre.InOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -426,7 +426,7 @@ func TestInOperator_EvaluateStrings(t *testing.T) {
 	var value string = "apple"
 	var assertedValue = []string{"banana", "orange", "apple", "grape"}
 	var failedValue = []string{"pear", "melon", "kiwi"}
-	var operator gorulesengine.Operator = &gorulesengine.InOperator{}
+	var operator gre.Operator = &gre.InOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -447,7 +447,7 @@ func TestInOperator_EvaluateStrings(t *testing.T) {
 
 // Test for InOperator with invalid type
 func TestInOperator_EvaluateInvalidType(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.InOperator{}
+	var operator gre.Operator = &gre.InOperator{}
 
 	// Test with compareValue that is not a slice
 	_, err := operator.Evaluate(5, "not a slice")
@@ -467,7 +467,7 @@ func TestNotInOperator_EvaluateNumbers(t *testing.T) {
 	var value int = 6
 	var assertedValue = []int{1, 2, 3, 4, 5}
 	var failedValue = []int{6, 7, 8, 9, 10}
-	var operator gorulesengine.Operator = &gorulesengine.NotInOperator{}
+	var operator gre.Operator = &gre.NotInOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -491,7 +491,7 @@ func TestNotInOperator_EvaluateStrings(t *testing.T) {
 	var value string = "apple"
 	var assertedValue = []string{"pear", "melon", "kiwi"}
 	var failedValue = []string{"banana", "orange", "apple", "grape"}
-	var operator gorulesengine.Operator = &gorulesengine.NotInOperator{}
+	var operator gre.Operator = &gre.NotInOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -515,7 +515,7 @@ func TestContainsOperator_EvaluateNumbers(t *testing.T) {
 	var value = []int{1, 2, 3, 4, 5}
 	var assertedValue int = 5
 	var failedValue int = 6
-	var operator gorulesengine.Operator = &gorulesengine.ContainsOperator{}
+	var operator gre.Operator = &gre.ContainsOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -539,7 +539,7 @@ func TestContainsOperator_EvaluateStrings(t *testing.T) {
 	var value = "An apple a day keeps the doctor away"
 	var assertedValue string = "apple"
 	var failedValue string = "pear"
-	var operator gorulesengine.Operator = &gorulesengine.ContainsOperator{}
+	var operator gre.Operator = &gre.ContainsOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -560,7 +560,7 @@ func TestContainsOperator_EvaluateStrings(t *testing.T) {
 
 // Test for ContainsOperator with invalid types
 func TestContainsOperator_EvaluateInvalidTypes(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.ContainsOperator{}
+	var operator gre.Operator = &gre.ContainsOperator{}
 
 	// Test with factValue that is neither slice nor string
 	_, err := operator.Evaluate(123, "test")
@@ -580,7 +580,7 @@ func TestNotContainsOperator_EvaluateNumbers(t *testing.T) {
 	var value = []int{1, 2, 3, 4, 5}
 	var assertedValue int = 6
 	var failedValue int = 5
-	var operator gorulesengine.Operator = &gorulesengine.NotContainsOperator{}
+	var operator gre.Operator = &gre.NotContainsOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -604,7 +604,7 @@ func TestNotContainsOperator_EvaluateStrings(t *testing.T) {
 	var value = "An apple a day keeps the doctor away"
 	var assertedValue string = "pear"
 	var failedValue string = "apple"
-	var operator gorulesengine.Operator = &gorulesengine.NotContainsOperator{}
+	var operator gre.Operator = &gre.NotContainsOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -644,7 +644,7 @@ func TestToFloat64_AllNumericTypes(t *testing.T) {
 	var f64 float64 = 5.0
 
 	// Use operators to test toFloat64 indirectly
-	operator := &gorulesengine.LessThanOperator{}
+	operator := &gre.LessThanOperator{}
 
 	tests := []interface{}{i, i8, i16, i32, i64, ui, ui8, ui16, ui32, ui64, f32, f64}
 
@@ -661,7 +661,7 @@ func TestToFloat64_AllNumericTypes(t *testing.T) {
 
 // Tests for NotEqualOperator with error propagation
 func TestNotEqualOperator_PropagatesError(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.NotEqualOperator{}
+	var operator gre.Operator = &gre.NotEqualOperator{}
 
 	// Test with nil values that should generate an error
 	_, err := operator.Evaluate(nil, "test")
@@ -672,7 +672,7 @@ func TestNotEqualOperator_PropagatesError(t *testing.T) {
 
 // Tests for NotInOperator with error propagation
 func TestNotInOperator_PropagatesError(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.NotInOperator{}
+	var operator gre.Operator = &gre.NotInOperator{}
 
 	// Test with compareValue that is not a slice
 	_, err := operator.Evaluate(5, "not a slice")
@@ -683,7 +683,7 @@ func TestNotInOperator_PropagatesError(t *testing.T) {
 
 // Tests for NotContainsOperator with error propagation
 func TestNotContainsOperator_PropagatesError(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.NotContainsOperator{}
+	var operator gre.Operator = &gre.NotContainsOperator{}
 
 	// Test with invalid factValue
 	_, err := operator.Evaluate(123, "test")
@@ -694,7 +694,7 @@ func TestNotContainsOperator_PropagatesError(t *testing.T) {
 
 // Tests for InOperator with empty slice
 func TestInOperator_EmptySlice(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.InOperator{}
+	var operator gre.Operator = &gre.InOperator{}
 
 	result, err := operator.Evaluate(5, []int{})
 	if err != nil {
@@ -707,7 +707,7 @@ func TestInOperator_EmptySlice(t *testing.T) {
 
 // Test for InOperator with error propagated from EqualOperator
 func TestInOperator_PropagatesEqualError(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.InOperator{}
+	var operator gre.Operator = &gre.InOperator{}
 
 	// Create a slice containing nil, which should trigger an error in EqualOperator
 	sliceWithNil := []interface{}{1, 2, nil, 4}
@@ -719,7 +719,7 @@ func TestInOperator_PropagatesEqualError(t *testing.T) {
 
 // Tests for ContainsOperator with empty slice
 func TestContainsOperator_EmptySlice(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.ContainsOperator{}
+	var operator gre.Operator = &gre.ContainsOperator{}
 
 	result, err := operator.Evaluate([]int{}, 5)
 	if err != nil {
@@ -732,7 +732,7 @@ func TestContainsOperator_EmptySlice(t *testing.T) {
 
 // Test for ContainsOperator with error propagated from EqualOperator
 func TestContainsOperator_PropagatesEqualError(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.ContainsOperator{}
+	var operator gre.Operator = &gre.ContainsOperator{}
 
 	// Create a slice containing nil, which should trigger an error in EqualOperator
 	sliceWithNil := []interface{}{1, 2, nil, 4}
@@ -744,7 +744,7 @@ func TestContainsOperator_PropagatesEqualError(t *testing.T) {
 
 // Tests for ContainsOperator with empty string
 func TestContainsOperator_EmptyString(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.ContainsOperator{}
+	var operator gre.Operator = &gre.ContainsOperator{}
 
 	result, err := operator.Evaluate("", "test")
 	if err != nil {
@@ -769,7 +769,7 @@ func TestRegexOperator_EvaluateStrings(t *testing.T) {
 	var value = "hello123"
 	var assertedValue string = `^hello\d+$` // regex pattern
 	var failedValue string = `^world\d+$`   // regex pattern
-	var operator gorulesengine.Operator = &gorulesengine.RegexOperator{}
+	var operator gre.Operator = &gre.RegexOperator{}
 
 	result, err := operator.Evaluate(value, assertedValue)
 	if err != nil {
@@ -790,7 +790,7 @@ func TestRegexOperator_EvaluateStrings(t *testing.T) {
 
 // Test for RegexOperator with invalid types
 func TestRegexOperator_EvaluateInvalidTypes(t *testing.T) {
-	var operator gorulesengine.Operator = &gorulesengine.RegexOperator{}
+	var operator gre.Operator = &gre.RegexOperator{}
 
 	// Test with non-string factValue
 	_, err := operator.Evaluate(12345, `^\d+$`)
@@ -815,7 +815,7 @@ func TestRegexOperator_EvaluateInvalidTypes(t *testing.T) {
 func TestGetOperator(t *testing.T) {
 	tests := []struct {
 		name       string
-		opType     gorulesengine.OperatorType
+		opType     gre.OperatorType
 		wantExists bool
 	}{
 		{
@@ -882,7 +882,7 @@ func TestGetOperator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			op, err := gorulesengine.GetOperator(tt.opType)
+			op, err := gre.GetOperator(tt.opType)
 			if tt.wantExists {
 				if err != nil {
 					t.Errorf("Expected operator to exist, got error: %v", err)
@@ -900,7 +900,7 @@ func TestGetOperator(t *testing.T) {
 					t.Errorf("Expected nil operator for non-existing operator, got instance")
 				}
 
-				ruleErr, ok := err.(*gorulesengine.OperatorError)
+				ruleErr, ok := err.(*gre.OperatorError)
 				if !ok {
 					t.Errorf("Expected OperatorError type, got %T", err)
 				} else {
@@ -914,24 +914,24 @@ func TestGetOperator(t *testing.T) {
 	}
 }
 
-// Définir un opérateur personnalisé simple au niveau du package
+// Define a simple custom operator at the package level
 type CustomOperator struct{}
 
-// Implémenter l'interface Operator pour CustomOperator
+// Implement the Operator interface for CustomOperator
 func (o *CustomOperator) Evaluate(factValue interface{}, compareValue interface{}) (bool, error) {
 	return true, nil
 }
 
 func TestRegisterOperator(t *testing.T) {
-	customOpType := gorulesengine.OperatorType("custom_operator")
+	customOpType := gre.OperatorType("custom_operator")
 
 	customOperator := &CustomOperator{}
 
-	// Enregistrer l'opérateur personnalisé
-	gorulesengine.RegisterOperator(customOpType, customOperator)
+	// Register the custom operator
+	gre.RegisterOperator(customOpType, customOperator)
 
-	// Récupérer l'opérateur enregistré
-	retrievedOp, err := gorulesengine.GetOperator(customOpType)
+	// Retrieve the registered operator
+	retrievedOp, err := gre.GetOperator(customOpType)
 	if err != nil {
 		t.Errorf("Unexpected error retrieving custom operator: %v", err)
 	}

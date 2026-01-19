@@ -1,0 +1,44 @@
+graph LR
+    subgraph Operators["⚙️ 11 Operators Available"]
+        O1[OperatorEqual<br/>'equal']
+        O2[OperatorNotEqual<br/>'not_equal']
+        O3[OperatorLessThan<br/>'less_than']
+        O4[OperatorLessThanInclusive<br/>'less_than_inclusive']
+        O5[OperatorGreaterThan<br/>'greater_than']
+        O6[OperatorGreaterThanInclusive<br/>'greater_than_inclusive']
+        O7[OperatorIn<br/>'in']
+        O8[OperatorNotIn<br/>'not_in']
+        O9[OperatorContains<br/>'contains']
+        O10[OperatorNotContains<br/>'not_contains']
+        O11[OperatorRegex<br/>'regex']
+    end
+
+    subgraph Registry["Operator Registry"]
+        OR[map OperatorType Operator]
+    end
+
+    O1 --> OR
+    O2 --> OR
+    O3 --> OR
+    O4 --> OR
+    O5 --> OR
+    O6 --> OR
+    O7 --> OR
+    O8 --> OR
+    O9 --> OR
+    O10 --> OR
+    O11 --> OR
+
+    Registry --> Condition[Condition uses<br/>GetOperator opType]
+
+    style O1 fill:#90EE90
+    style O2 fill:#90EE90
+    style O3 fill:#87CEEB
+    style O4 fill:#87CEEB
+    style O5 fill:#87CEEB
+    style O6 fill:#87CEEB
+    style O7 fill:#DDA0DD
+    style O8 fill:#DDA0DD
+    style O9 fill:#F0E68C
+    style O10 fill:#F0E68C
+    style O11 fill:#FFB6C1
